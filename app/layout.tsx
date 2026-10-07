@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import SiteFooter from "../components/SiteFooter";
 import "./globals.css";
 import "./style.css";
 
@@ -17,7 +18,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <NuqsAdapter>{children}</NuqsAdapter>
+        <NuqsAdapter>
+          {children}
+          <SiteFooter />
+        </NuqsAdapter>
       </body>
     </html>
   );

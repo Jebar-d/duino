@@ -362,6 +362,30 @@ export default function Header() {
           >
             <span className="s-label">Terms</span>
           </Link>
+
+          <Link
+            href="/rules"
+            className="s-item"
+            onClick={() => setMenuOpen(false)}
+          >
+            <span className="s-label">Rules</span>
+          </Link>
+
+          <Link
+            href="/shipping"
+            className="s-item"
+            onClick={() => setMenuOpen(false)}
+          >
+            <span className="s-label">Shipping</span>
+          </Link>
+
+          <Link
+            href="/returns"
+            className="s-item"
+            onClick={() => setMenuOpen(false)}
+          >
+            <span className="s-label">Returns</span>
+          </Link>
         </nav>
       </aside>
     </>
