@@ -1,3 +1,5 @@
+//homepage whaahhaha
+
 "use client";
 
 import Link from "next/link";
@@ -479,7 +481,7 @@ export default function HomePage() {
           <div className="hero-text-col">
             <div className="hero-tag">
               <svg width="8" height="8" viewBox="0 0 8 8">
-                <circle cx="4" cy="4" r="4" fill="#77CFCF" />
+                <circle cx="4" cy="4" r="4" fill="#FFFFFF" />
               </svg>
               Electronics &amp; Maker Components
             </div>
@@ -560,8 +562,8 @@ export default function HomePage() {
                   width="280"
                   height="180"
                   rx="10"
-                  fill="#0d2a1e"
-                  stroke="#1a4a30"
+                  fill="#0D0D0D"
+                  stroke="#1A1A1A"
                   strokeWidth="2"
                 />
 
@@ -572,11 +574,11 @@ export default function HomePage() {
                   height="180"
                   rx="10"
                   fill="none"
-                  stroke="rgba(119,207,207,0.15)"
+                  stroke="rgba(255,255,255,0.06)"
                   strokeWidth="1"
                 />
 
-                <g stroke="rgba(119,207,207,0.4)" strokeWidth="1">
+                <g stroke="rgba(255,255,255,0.1)" strokeWidth="1">
                   {[50, 62, 74, 86, 98, 110, 122, 134].map((x) => (
                     <rect
                       key={x}
@@ -586,7 +588,7 @@ export default function HomePage() {
                       height="12"
                       rx="1"
                       fill="#111"
-                      stroke="rgba(119,207,207,0.5)"
+                      stroke="rgba(255,255,255,0.12)"
                       strokeWidth="0.8"
                     />
                   ))}
@@ -602,7 +604,7 @@ export default function HomePage() {
                       height="12"
                       rx="1"
                       fill="#111"
-                      stroke="rgba(119,207,207,0.5)"
+                      stroke="rgba(255,255,255,0.12)"
                       strokeWidth="0.8"
                     />
                   ))}
@@ -615,7 +617,7 @@ export default function HomePage() {
                   height="28"
                   rx="3"
                   fill="#1a1a1a"
-                  stroke="rgba(119,207,207,0.3)"
+                  stroke="rgba(255,255,255,0.1)"
                   strokeWidth="1"
                 />
 
@@ -633,7 +635,7 @@ export default function HomePage() {
                   cy="200"
                   r="10"
                   fill="#111"
-                  stroke="rgba(119,207,207,0.3)"
+                  stroke="rgba(255,255,255,0.1)"
                   strokeWidth="1"
                 />
 
@@ -659,7 +661,7 @@ export default function HomePage() {
                       y1={y}
                       x2="130"
                       y2={y}
-                      stroke="rgba(119,207,207,0.4)"
+                      stroke="rgba(255,255,255,0.1)"
                       strokeWidth="1.5"
                     />
 
@@ -668,7 +670,7 @@ export default function HomePage() {
                       y1={y}
                       x2="210"
                       y2={y}
-                      stroke="rgba(119,207,207,0.4)"
+                      stroke="rgba(255,255,255,0.1)"
                       strokeWidth="1.5"
                     />
                   </g>
@@ -678,7 +680,7 @@ export default function HomePage() {
                   x="165"
                   y="118"
                   textAnchor="middle"
-                  fill="rgba(119,207,207,0.5)"
+                  fill="rgba(255,255,255,0.12)"
                   fontSize="8"
                   fontFamily="monospace"
                 >
@@ -689,7 +691,7 @@ export default function HomePage() {
                   x="165"
                   y="130"
                   textAnchor="middle"
-                  fill="rgba(119,207,207,0.5)"
+                  fill="rgba(255,255,255,0.12)"
                   fontSize="8"
                   fontFamily="monospace"
                 >
@@ -703,7 +705,7 @@ export default function HomePage() {
                   height="12"
                   rx="3"
                   fill="#1a1a1a"
-                  stroke="rgba(119,207,207,0.3)"
+                  stroke="rgba(255,255,255,0.1)"
                   strokeWidth="1"
                 />
 
@@ -712,7 +714,7 @@ export default function HomePage() {
                   y1="95"
                   x2="234"
                   y2="107"
-                  stroke="rgba(119,207,207,0.2)"
+                  stroke="rgba(255,255,255,0.08)"
                   strokeWidth="0.5"
                 />
 
@@ -721,7 +723,7 @@ export default function HomePage() {
                   y1="95"
                   x2="248"
                   y2="107"
-                  stroke="rgba(119,207,207,0.2)"
+                  stroke="rgba(255,255,255,0.08)"
                   strokeWidth="0.5"
                 />
 
@@ -739,7 +741,7 @@ export default function HomePage() {
                 <path
                   className="hb-trace hb-trace-1"
                   d="M60 22 V50 H120 V80"
-                  stroke="#77CFCF"
+                  stroke="#FFFFFF"
                   strokeWidth="1"
                   fill="none"
                   strokeLinecap="round"
@@ -748,7 +750,7 @@ export default function HomePage() {
                 <path
                   className="hb-trace hb-trace-2"
                   d="M80 22 V60 H200 V80"
-                  stroke="#77CFCF"
+                  stroke="#FFFFFF"
                   strokeWidth="1"
                   fill="none"
                   strokeLinecap="round"
@@ -760,7 +762,7 @@ export default function HomePage() {
                 <path
                   className="hb-trace hb-trace-3"
                   d="M100 22 V55 H240 V90"
-                  stroke="#77CFCF"
+                  stroke="#FFFFFF"
                   strokeWidth="1"
                   fill="none"
                   strokeLinecap="round"
@@ -772,7 +774,7 @@ export default function HomePage() {
                 <path
                   className="hb-trace hb-trace-4"
                   d="M60 218 V185 H120 V150"
-                  stroke="#77CFCF"
+                  stroke="#FFFFFF"
                   strokeWidth="1"
                   fill="none"
                   strokeLinecap="round"
@@ -784,7 +786,7 @@ export default function HomePage() {
                 <path
                   className="hb-trace hb-trace-5"
                   d="M80 218 V190 H210 V150"
-                  stroke="#77CFCF"
+                  stroke="#FFFFFF"
                   strokeWidth="1"
                   fill="none"
                   strokeLinecap="round"
@@ -796,7 +798,7 @@ export default function HomePage() {
                 <path
                   className="hb-trace hb-trace-6"
                   d="M36 102 H60 V60 H130 V80"
-                  stroke="#77CFCF"
+                  stroke="#FFFFFF"
                   strokeWidth="1"
                   fill="none"
                   strokeLinecap="round"
@@ -809,8 +811,8 @@ export default function HomePage() {
                   cx="270"
                   cy="55"
                   r="7"
-                  fill="#0d1a0d"
-                  stroke="rgba(80,180,80,0.4)"
+                  fill="#0D0D0D"
+                  stroke="rgba(255,255,255,0.08)"
                   strokeWidth="1"
                 />
 
@@ -819,15 +821,15 @@ export default function HomePage() {
                   cx="270"
                   cy="55"
                   r="4.5"
-                  fill="#1a2a1a"
+                  fill="#1A1A1A"
                 />
 
                 <circle
                   cx="255"
                   cy="55"
                   r="7"
-                  fill="#0d0d1a"
-                  stroke="rgba(119,207,207,0.3)"
+                  fill="#0D0D0D"
+                  stroke="rgba(255,255,255,0.1)"
                   strokeWidth="1"
                 />
 
@@ -836,15 +838,15 @@ export default function HomePage() {
                   cx="255"
                   cy="55"
                   r="4.5"
-                  fill="#1a1a2a"
+                  fill="#1A1A1A"
                 />
 
                 <circle
                   cx="240"
                   cy="55"
                   r="7"
-                  fill="#1a0d0d"
-                  stroke="rgba(255,100,100,0.3)"
+                  fill="#1A1A1A"
+                  stroke="rgba(255,255,255,0.08)"
                   strokeWidth="1"
                 />
 
@@ -853,7 +855,7 @@ export default function HomePage() {
                   cx="240"
                   cy="55"
                   r="4.5"
-                  fill="#2a1a1a"
+                  fill="#1A1A1A"
                 />
 
                 <rect
@@ -863,7 +865,7 @@ export default function HomePage() {
                   height="22"
                   rx="3"
                   fill="#111"
-                  stroke="rgba(119,207,207,0.2)"
+                  stroke="rgba(255,255,255,0.08)"
                   strokeWidth="1"
                 />
 
@@ -873,7 +875,7 @@ export default function HomePage() {
                   cy="161"
                   r="7"
                   fill="#1a1a1a"
-                  stroke="rgba(119,207,207,0.5)"
+                  stroke="rgba(255,255,255,0.12)"
                   strokeWidth="1.5"
                 />
 
@@ -905,7 +907,7 @@ export default function HomePage() {
                     position: "absolute",
                     inset: 0,
                     background:
-                      "linear-gradient(135deg,rgba(119,207,207,0.12),rgba(0,0,0,0.7))",
+                      "linear-gradient(135deg,rgba(255,255,255,0.05),rgba(0,0,0,0.7))",
                     zIndex: 1,
                   }}
                 />
@@ -952,7 +954,7 @@ export default function HomePage() {
                     position: "absolute",
                     inset: 0,
                     background:
-                      "linear-gradient(135deg,rgba(119,207,207,0.08),rgba(0,0,0,0.7))",
+                      "linear-gradient(135deg,rgba(255,255,255,0.04),rgba(0,0,0,0.7))",
                     zIndex: 1,
                   }}
                 />
@@ -1006,7 +1008,7 @@ export default function HomePage() {
                     position: "absolute",
                     inset: 0,
                     background:
-                      "linear-gradient(135deg,rgba(119,207,207,0.06),rgba(0,0,0,0.7))",
+                      "linear-gradient(135deg,rgba(255,255,255,0.03),rgba(0,0,0,0.7))",
                     zIndex: 1,
                   }}
                 />
@@ -1257,7 +1259,7 @@ export default function HomePage() {
                       >
                         <span
                           style={{
-                            background: "#f87171",
+                            background: "#FFFFFF",
                             color: "#fff",
                             fontWeight: 800,
                             fontSize: "0.78rem",
@@ -1285,8 +1287,8 @@ export default function HomePage() {
                     {product.stock === 0 ? (
                       <span
                         style={{
-                          background: "rgba(255,68,68,0.15)",
-                          color: "#ff6b6b",
+                          background: "rgba(255,255,255,0.05)",
+                          color: "#FFFFFF",
                           fontSize: "0.7rem",
                           padding: "2px 6px",
                           borderRadius: "10px",
@@ -1297,8 +1299,8 @@ export default function HomePage() {
                     ) : product.stock < 5 ? (
                       <span
                         style={{
-                          background: "rgba(255,170,0,0.15)",
-                          color: "#ffaa00",
+                          background: "rgba(255,255,255,0.05)",
+                          color: "#FFFFFF",
                           fontSize: "0.7rem",
                           padding: "2px 6px",
                           borderRadius: "10px",

@@ -2753,17 +2753,17 @@ function paymentLabel(method: string) {
 
 const adminStyles = `
 :root {
-  --adm-bg: #0d0d0f;
-  --adm-surface: #141417;
-  --adm-card: #1a1a1e;
-  --adm-border: rgba(119,207,207,0.12);
-  --adm-primary: #77CFCF;
-  --adm-accent: #5fa9a9;
-  --adm-danger: #ff4d4d;
-  --adm-warning: #f5a623;
-  --adm-success: #2ecc71;
-  --adm-text: #f0f0f0;
-  --adm-text2: #8a8a9a;
+  --adm-bg: #050505;
+  --adm-surface: #0d0d0d;
+  --adm-card: #141414;
+  --adm-border: #303030;
+  --adm-primary: #ffffff;
+  --adm-accent: #aaaaaa;
+  --adm-danger: #cccccc;
+  --adm-warning: #aaaaaa;
+  --adm-success: #dddddd;
+  --adm-text: #ffffff;
+  --adm-text2: #888888;
   --adm-sidebar: 240px;
 }
 
@@ -2857,13 +2857,13 @@ const adminStyles = `
 
 .adm-nav-link:hover {
   color: var(--adm-text);
-  background: rgba(119,207,207,0.05);
+  background: #171717;
 }
 
 .adm-nav-link.active {
   color: var(--adm-primary);
   border-left-color: var(--adm-primary);
-  background: rgba(119,207,207,0.08);
+  background: #1b1b1b;
   font-weight: 600;
 }
 
@@ -2880,9 +2880,9 @@ const adminStyles = `
   justify-content: center;
   gap: 0.4rem;
   margin-top: 0.75rem;
-  background: rgba(255,77,77,0.12);
-  border: 1px solid rgba(255,77,77,0.25);
-  color: #ff6b6b;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #ffffff;
   border-radius: 6px;
   padding: 0.45rem 0.9rem;
   cursor: pointer;
@@ -2977,17 +2977,17 @@ const adminStyles = `
 }
 
 .ic-teal {
-  background: rgba(119,207,207,0.12);
+  background: #303030;
   color: var(--adm-primary);
 }
 
 .ic-green {
-  background: rgba(46,204,113,0.12);
+  background: rgba(255,255,255,0.05);
   color: var(--adm-success);
 }
 
 .ic-orange {
-  background: rgba(245,166,35,0.12);
+  background: rgba(255,255,255,0.05);
   color: var(--adm-warning);
 }
 
@@ -3090,7 +3090,7 @@ const adminStyles = `
 }
 
 .adm-t thead {
-  background: rgba(119,207,207,0.04);
+  background: rgba(255,255,255,0.02);
 }
 
 .adm-t th {
@@ -3106,7 +3106,7 @@ const adminStyles = `
 
 .adm-t td {
   padding: 0.8rem 1rem;
-  border-bottom: 1px solid rgba(119,207,207,0.05);
+  border-bottom: 1px solid #171717;
   vertical-align: middle;
 }
 
@@ -3115,7 +3115,7 @@ const adminStyles = `
 }
 
 .adm-t tr:hover td {
-  background: rgba(119,207,207,0.025);
+  background: rgba(255,255,255,0.015);
 }
 
 .adm-t img {
@@ -3135,28 +3135,28 @@ const adminStyles = `
 }
 
 .b-g {
-  background: rgba(46,204,113,0.12);
-  color: #2ecc71;
+  background: rgba(255,255,255,0.05);
+  color: #dddddd;
 }
 
 .b-r {
-  background: rgba(255,77,77,0.12);
-  color: #ff4d4d;
+  background: rgba(255,255,255,0.05);
+  color: #cccccc;
 }
 
 .b-o {
-  background: rgba(245,166,35,0.12);
-  color: #f5a623;
+  background: rgba(255,255,255,0.05);
+  color: #aaaaaa;
 }
 
 .b-t {
-  background: rgba(119,207,207,0.12);
-  color: #77CFCF;
+  background: #303030;
+  color: #ffffff;
 }
 
 .b-gray {
-  background: rgba(138,138,154,0.12);
-  color: #8a8a9a;
+  background: rgba(255,255,255,0.05);
+  color: #888888;
 }
 
 .adm-btn {
@@ -3200,13 +3200,13 @@ const adminStyles = `
 }
 
 .adm-btn-d {
-  background: rgba(255,77,77,0.1);
-  border: 1px solid rgba(255,77,77,0.25);
-  color: #ff4d4d;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #cccccc;
 }
 
 .adm-btn-d:hover:not(:disabled) {
-  background: rgba(255,77,77,0.18);
+  background: rgba(255,255,255,0.06);
 }
 
 .adm-btn-s {
@@ -3606,7 +3606,7 @@ const adminStyles = `
 .bar-track {
   flex: 1;
   height: 28px;
-  background: rgba(119,207,207,0.06);
+  background: rgba(255,255,255,0.03);
   border-radius: 6px;
   overflow: hidden;
   position: relative;
@@ -3615,7 +3615,7 @@ const adminStyles = `
 .bar-fill {
   height: 100%;
   border-radius: 6px;
-  background: linear-gradient(90deg,var(--adm-primary),#5ab5b5);
+  background: linear-gradient(90deg,var(--adm-primary),#AAAAAA);
   transition: width 0.6s ease;
   display: flex;
   align-items: center;

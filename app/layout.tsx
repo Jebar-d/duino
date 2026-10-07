@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { ActiveThemeProvider } from "@/components/active-theme";
 import "./globals.css";
-import "./retro-globals.css";
 import "./style.css";
 
 export const metadata: Metadata = {
@@ -19,9 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <NuqsAdapter>
-          <ActiveThemeProvider>{children}</ActiveThemeProvider>
-        </NuqsAdapter>
+        <NuqsAdapter>{children}</NuqsAdapter>
       </body>
     </html>
   );
