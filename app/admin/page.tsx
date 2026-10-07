@@ -1569,7 +1569,7 @@ export default function AdminPage() {
           </div>
 
           <nav className="adm-nav">
-            {tabs.map((item, index) => (
+            {tabs.map((item) => (
               <div key={item.id}>
                 {item.section && (
                   <div className="adm-nav-section">{item.section}</div>
