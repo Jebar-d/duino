@@ -1,6 +1,10 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
-const groups = [
+type FaqEntry = [question: string, answer: ReactNode];
+type FaqGroup = { title: string; entries: FaqEntry[] };
+
+const groups: FaqGroup[] = [
   { title: "📦 Orders & Shipping", entries: [
     ["How long does shipping take?", "Standard delivery takes 3–5 business days nationwide. Express delivery is 1–2 business days. We ship to all provinces in the Philippines via J&T Express, LBC, and Ninja Van."],
     ["Do you offer free shipping?", <>Yes! Orders totaling ₱1,500 or more qualify for FREE standard shipping. Just use promo code <strong style={{ color: "var(--primary)" }}>FREESHIP</strong> at checkout, or it may be applied automatically.</>],

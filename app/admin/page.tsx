@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch, API_BASE } from "../../lib/api";
 
 type User = {
@@ -90,6 +90,62 @@ type AnalyticsData = {
     revenue_cents: number;
   }[];
 };
+
+type RawAnalytics = Partial<Omit<AnalyticsData, "monthly_revenue" | "top_products">> & {
+  monthly_revenue?: {
+    month?: string;
+    label?: string;
+    revenue_cents?: number;
+    order_count?: number;
+  }[];
+  top_products?: {
+    name?: string;
+    product_name?: string;
+    img_url?: string | null;
+    qty?: number;
+    units_sold?: number;
+    revenue_cents?: number;
+  }[];
+};
+
+function monthLabel(value: string) {
+  const [year, month] = value.split("-").map(Number);
+
+  if (!year || !month) {
+    return value;
+  }
+
+  return new Date(year, month - 1, 1).toLocaleString("en-US", {
+    month: "short",
+    year: "numeric",
+  });
+}
+
+// Accepts both the old and the new backend field names so the charts never
+// get an undefined key/label.
+function normalizeAnalytics(raw: RawAnalytics): AnalyticsData {
+  return {
+    total_revenue_cents: raw.total_revenue_cents ?? 0,
+    month_revenue_cents: raw.month_revenue_cents ?? 0,
+    total_orders: raw.total_orders ?? 0,
+    paid_orders: raw.paid_orders ?? 0,
+    pending_orders: raw.pending_orders ?? 0,
+    cancelled_orders: raw.cancelled_orders ?? 0,
+    monthly_revenue: (raw.monthly_revenue ?? []).map((item, index) => ({
+      label: item.label ?? (item.month ? monthLabel(item.month) : `Month ${index + 1}`),
+      revenue_cents: item.revenue_cents ?? 0,
+      order_count: item.order_count ?? 0,
+    })),
+    payment_methods: raw.payment_methods ?? [],
+    order_statuses: raw.order_statuses ?? [],
+    top_products: (raw.top_products ?? []).map((item) => ({
+      name: item.name ?? item.product_name ?? "Unknown product",
+      img_url: item.img_url ?? null,
+      qty: item.qty ?? item.units_sold ?? 0,
+      revenue_cents: item.revenue_cents ?? 0,
+    })),
+  };
+}
 
 type Tab =
   | "dashboard"
@@ -1384,14 +1440,17 @@ export default function AdminPage() {
   const [toastType, setToastType] = useState("info");
   const [loading, setLoading] = useState(false);
 
-  const showToast = (message: string, type = "info") => {
+  // Must keep the same identity between renders: child views list it in
+  // their useEffect dependencies, so a new function every render made the
+  // admin pages reload forever (flicker + spinner).
+  const showToast = useCallback((message: string, type = "info") => {
     setToastMessage(message);
     setToastType(type);
 
     window.setTimeout(() => {
       setToastMessage("");
     }, 3000);
-  };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -1891,7 +1950,7 @@ function AnalyticsView({
         }>("/admin/analytics.php");
 
         if (mounted) {
-          setData(result.analytics);
+          setData(normalizeAnalytics(result.analytics));
         }
       } catch (error) {
         if (mounted) {
