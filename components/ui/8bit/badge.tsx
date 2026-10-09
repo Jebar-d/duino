@@ -66,6 +66,7 @@ function Badge({
         className={cn(
           "h-full",
           "rounded-none",
+          "text-[0.6rem]",
           "w-full",
           font !== "normal" && "retro",
           visualClasses
@@ -78,7 +79,7 @@ function Badge({
       {/* Left pixel bar */}
       <div
         className={cn(
-          "-left-1.5 absolute inset-y-[4px] w-1.5",
+          "-left-1 absolute inset-y-1 w-1",
           color,
           visualClasses
         )}
@@ -86,7 +87,7 @@ function Badge({
       {/* Right pixel bar */}
       <div
         className={cn(
-          "-right-1.5 absolute inset-y-[4px] w-1.5",
+          "-right-1 absolute inset-y-1 w-1",
           color,
           visualClasses
         )}

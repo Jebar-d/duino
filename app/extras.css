@@ -15,15 +15,15 @@
   position: absolute;
   top: 2px;
   right: 0;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
   display: grid;
   place-items: center;
   background: #fff;
   color: #000;
   border: 1px solid #000;
-  font-size: 0.65rem;
+  font-size: 0.55rem;
   font-weight: 700;
   line-height: 1;
 }
@@ -54,7 +54,7 @@
 }
 
 .account-tabs a {
-  padding: 16px 18px;
+  padding: 10px 12px;
   color: #888;
   text-decoration: none;
   text-transform: uppercase;
@@ -153,8 +153,8 @@
 
 .acct-empty {
   max-width: 460px;
-  margin: 60px auto;
-  padding: 36px;
+  margin: 32px auto;
+  padding: 24px;
   text-align: center;
   border: 1px solid #333;
   background: #0c0c0c;
@@ -225,7 +225,7 @@
 
 /* ===== Vouchers ===== */
 .voucher-grid {
-  margin-top: 24px;
+  margin-top: 16px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
@@ -271,7 +271,7 @@
 }
 
 .addr-grid {
-  margin-top: 24px;
+  margin-top: 16px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
@@ -397,7 +397,7 @@
 }
 
 .product-model-fallback {
-  padding: 40px;
+  padding: 24px;
   color: #aaa;
   text-align: center;
 }

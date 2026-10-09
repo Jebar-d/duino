@@ -22,7 +22,7 @@ export const cardVariants = cva("", {
     },
   },
   defaultVariants: {
-    font: "retro",
+    font: "normal",
   },
 });
 
@@ -32,25 +32,25 @@ export interface BitCardProps
   asChild?: boolean;
 }
 
-function Card({ className, font, ...props }: BitCardProps) {
+function Card({ className, font = "normal", ...props }: BitCardProps) {
   return (
     <div
       className={cn(
-        "relative bg-card text-card-foreground border-y-6 border-foreground dark:border-ring p-0!",
+        "relative bg-card text-card-foreground border-y-2 border-foreground dark:border-ring p-0!",
         className
       )}
     >
       <ShadcnCard
         {...props}
         className={cn(
-          "rounded-none border-0 w-full! h-full flex flex-col bg-card text-card-foreground shadow-none",
+          "rounded-none border-0 w-full! h-full flex flex-col gap-3 bg-card py-4 text-card-foreground shadow-none",
           font !== "normal" && "retro",
           className
         )}
       />
 
       <div
-        className={cn("absolute inset-0 border-x-6 -mx-1.5 border-inherit pointer-events-none")}
+        className="pointer-events-none absolute inset-0 border-x-2 border-inherit"
         aria-hidden="true"
       />
     </div>
@@ -58,68 +58,68 @@ function Card({ className, font, ...props }: BitCardProps) {
 }
 
 function CardHeader({ ...props }: BitCardProps) {
-  const { className, font } = props;
+  const { className, font = "normal", ...rest } = props;
 
   return (
     <ShadcnCardHeader
       className={cn(font !== "normal" && "retro", className)}
-      {...props}
+      {...rest}
     />
   );
 }
 
 function CardTitle({ ...props }: BitCardProps) {
-  const { className, font } = props;
+  const { className, font = "retro", ...rest } = props;
 
   return (
     <ShadcnCardTitle
-      className={cn(font !== "normal" && "retro", className)}
-      {...props}
+      className={cn(font !== "normal" && "retro text-xs", className)}
+      {...rest}
     />
   );
 }
 
 function CardDescription({ ...props }: BitCardProps) {
-  const { className, font } = props;
+  const { className, font = "normal", ...rest } = props;
 
   return (
     <ShadcnCardDescription
       className={cn(font !== "normal" && "retro", className)}
-      {...props}
+      {...rest}
     />
   );
 }
 
 function CardAction({ ...props }: BitCardProps) {
-  const { className, font } = props;
+  const { className, font = "normal", ...rest } = props;
 
   return (
     <ShadcnCardAction
       className={cn(font !== "normal" && "retro", className)}
-      {...props}
+      {...rest}
     />
   );
 }
 
 function CardContent({ ...props }: BitCardProps) {
-  const { className, font } = props;
+  const { className, font = "normal", ...rest } = props;
 
   return (
     <ShadcnCardContent
       className={cn("flex-1", font !== "normal" && "retro", className)}
-      {...props}
+      {...rest}
     />
   );
 }
 
 function CardFooter({ ...props }: BitCardProps) {
-  const { className, font } = props;
+  const { className, font = "normal", ...rest } = props;
 
   return (
     <ShadcnCardFooter
       data-slot="card-footer"
       className={cn(font !== "normal" && "retro", className)}
-      {...props}
+      {...rest}
     />
   );
 }

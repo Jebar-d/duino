@@ -17,7 +17,7 @@ export const progressVariants = cva("", {
     },
   },
   defaultVariants: {
-    font: "retro",
+    font: "normal",
   },
 });
 
@@ -31,7 +31,7 @@ export interface BitProgressProps
 
 function Progress({
   className,
-  font,
+  font = "normal",
   variant,
   value,
   progressBg,
@@ -88,12 +88,12 @@ function Progress({
       </ProgressPrimitive.Root>
 
       <div
-        className="absolute inset-0 border-y-4 -my-1 border-foreground dark:border-ring pointer-events-none"
+        className="pointer-events-none absolute inset-0 border-y-2 border-foreground dark:border-ring"
         aria-hidden="true"
       />
 
       <div
-        className="absolute inset-0 border-x-4 -mx-1 border-foreground dark:border-ring pointer-events-none"
+        className="pointer-events-none absolute inset-0 border-x-2 border-foreground dark:border-ring"
         aria-hidden="true"
       />
     </div>

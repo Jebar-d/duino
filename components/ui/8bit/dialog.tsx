@@ -32,11 +32,11 @@ export interface BitDialogProps
     VariantProps<typeof dialogContentVariants> {}
 
 function DialogTitle({ ...props }: BitDialogProps) {
-  const { className, font } = props;
+  const { className, font = "retro", ...rest } = props;
   return (
     <ShadcnDialogTitle
-      className={cn(font !== "normal" && "retro", className)}
-      {...props}
+      className={cn(font !== "normal" && "retro text-xs", className)}
+      {...rest}
     />
   );
 }
@@ -49,20 +49,20 @@ export const dialogContentVariants = cva("", {
     },
   },
   defaultVariants: {
-    font: "retro",
+    font: "normal",
   },
 });
 
 function DialogContent({
   className,
   children,
-  font,
+  font = "normal",
   ...props
 }: BitDialogProps) {
   return (
     <ShadcnDialogContent
       className={cn(
-        "bg-card rounded-none border-none",
+        "relative bg-card rounded-none border-none",
         font !== "normal" && "retro",
         className
       )}
@@ -71,11 +71,11 @@ function DialogContent({
       {children}
 
       <div
-        className="absolute inset-0 border-x-6 -mx-1.5 border-foreground dark:border-ring pointer-events-none"
+        className="pointer-events-none absolute inset-0 border-x-2 border-foreground dark:border-ring"
         aria-hidden="true"
       />
       <div
-        className="absolute inset-0 border-y-6 -my-1.5 border-foreground dark:border-ring pointer-events-none"
+        className="pointer-events-none absolute inset-0 border-y-2 border-foreground dark:border-ring"
         aria-hidden="true"
       />
     </ShadcnDialogContent>

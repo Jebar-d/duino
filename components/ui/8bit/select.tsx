@@ -26,7 +26,7 @@ export const inputVariants = cva("", {
     },
   },
   defaultVariants: {
-    font: "retro",
+    font: "normal",
   },
 });
 
@@ -48,16 +48,17 @@ function SelectGroup({
 
 interface BitSelectValueProps
   extends React.ComponentProps<typeof SelectPrimitive.Value>,
-    VariantProps<typeof inputVariants> {
-  asChild?: boolean;
-}
+    VariantProps<typeof inputVariants> {}
 
-function SelectValue({ ...props }: BitSelectValueProps) {
-  const { font } = props;
+function SelectValue({
+  className,
+  font = "normal",
+  ...props
+}: BitSelectValueProps) {
 
   return (
     <ShadcnSelectValue
-      className={cn(font !== "normal" && "retro")}
+      className={cn(font !== "normal" && "retro", className)}
       {...props}
     />
   );
@@ -66,29 +67,36 @@ function SelectValue({ ...props }: BitSelectValueProps) {
 interface BitSelectTriggerProps
   extends React.ComponentProps<typeof SelectPrimitive.Trigger>,
     VariantProps<typeof inputVariants> {
-  asChild?: boolean;
+  triggerClassName?: string;
 }
 
-function SelectTrigger({ children, ...props }: BitSelectTriggerProps) {
-  const { className, font } = props;
-
+function SelectTrigger({
+  children,
+  className,
+  font = "normal",
+  triggerClassName,
+  ...props
+}: BitSelectTriggerProps) {
   return (
     <div
       className={cn(
-        "relative border-y-6 border-foreground dark:border-ring",
-        className,
-        font !== "normal" && "retro"
+        "relative h-10 border-y-2 border-foreground dark:border-ring",
+        className
       )}
     >
       <ShadcnSelectTrigger
         {...props}
-        className={cn("rounded-none ring-0 w-full border-0", className)}
+        className={cn(
+          "h-full w-full rounded-none border-0 px-3 py-1 text-sm ring-0",
+          font !== "normal" && "retro",
+          triggerClassName
+        )}
       >
         {children}
       </ShadcnSelectTrigger>
 
       <div
-        className="absolute inset-0 border-x-6 -mx-1.5 border-foreground dark:border-ring pointer-events-none"
+        className="pointer-events-none absolute inset-0 border-x-2 border-foreground dark:border-ring"
         aria-hidden="true"
       />
     </div>
@@ -97,23 +105,21 @@ function SelectTrigger({ children, ...props }: BitSelectTriggerProps) {
 
 export interface BitSelectContentProps
   extends React.ComponentProps<typeof SelectPrimitive.Content>,
-    VariantProps<typeof inputVariants> {
-  asChild?: boolean;
-}
+    VariantProps<typeof inputVariants> {}
 
 function SelectContent({
   className,
   children,
+  font = "normal",
   ...props
 }: BitSelectContentProps) {
-  const { font } = props;
 
   return (
     <ShadcnSelectContent
       className={cn(
         font !== "normal" && "retro",
         className,
-        "relative rounded-none border-4 border-foreground dark:border-ring -ml-1 mt-1"
+        "relative rounded-none border-2 border-foreground dark:border-ring -ml-0.5 mt-1 text-sm"
       )}
       {...props}
     >

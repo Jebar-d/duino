@@ -86,7 +86,7 @@ export const dropDownVariants = cva("", {
     },
   },
   defaultVariants: {
-    font: "retro",
+    font: "normal",
   },
 });
 
@@ -96,19 +96,20 @@ function DropdownMenuSubContent({
   font,
   ...props
 }: BitDropownMenuSubContentProps) {
+  const bodyFont = font ?? "normal";
   return (
     <ShadcnDropdownMenuSubContent
       {...props}
-      className={cn("bg-popover", font !== "normal" && "retro", className)}
+      className={cn("bg-popover text-sm", bodyFont !== "normal" && "retro", className)}
     >
       {children}
 
       <div
-        className="absolute inset-0 border-x-6 -mx-1.5 border-foreground dark:border-ring pointer-events-none"
+        className="pointer-events-none absolute inset-0 border-x-2 border-foreground dark:border-ring"
         aria-hidden="true"
       />
       <div
-        className="absolute inset-0 border-y-6 -my-1.5 border-foreground dark:border-ring pointer-events-none"
+        className="pointer-events-none absolute inset-0 border-y-2 border-foreground dark:border-ring"
         aria-hidden="true"
       />
     </ShadcnDropdownMenuSubContent>
@@ -129,19 +130,20 @@ function DropdownMenuContent({
   className,
   ...props
 }: BitDropownMenuContentProps) {
+  const bodyFont = font ?? "normal";
   return (
     <ShadcnDropdownMenuContent
-      className={cn("mt-1 py-2", font !== "normal" && "retro", className)}
+      className={cn("relative mt-1 py-1 text-sm", bodyFont !== "normal" && "retro", className)}
       {...props}
     >
       {children}
 
       <div
-        className="mt-2.5 absolute inset-0 border-x-6 -mx-1.5 border-foreground dark:border-ring pointer-events-none"
+        className="pointer-events-none absolute inset-0 border-x-2 border-foreground dark:border-ring"
         aria-hidden="true"
       />
       <div
-        className="mt-1 absolute inset-0 border-y-6 -my-1.5 border-foreground dark:border-ring pointer-events-none"
+        className="pointer-events-none absolute inset-0 border-y-2 border-foreground dark:border-ring"
         aria-hidden="true"
       />
     </ShadcnDropdownMenuContent>

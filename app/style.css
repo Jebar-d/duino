@@ -39,7 +39,8 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
-  line-height: 1.6;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 button,
@@ -88,6 +89,13 @@ h6 {
   line-height: 1.35;
 }
 
+h1 { font-size: 1.25rem; }
+h2 { font-size: 1.125rem; }
+h3 { font-size: 1rem; }
+h4 { font-size: 0.95rem; }
+h5,
+h6 { font-size: 0.875rem; }
+
 .pixel-font {
   font-family: var(--font-pixel);
 }
@@ -107,7 +115,7 @@ h6 {
 .container {
   width: min(var(--max-width), calc(100% - 40px));
   margin: 0 auto;
-  padding: 60px 0 90px;
+  padding: 32px 0 48px;
 }
 
 /* =========================================================
@@ -392,9 +400,9 @@ header .logo {
 
   align-items: center;
 
-  gap: 55px;
+  gap: 24px;
 
-  padding: 70px 0;
+  padding: 32px 0;
 }
 
 .hero-text-col {
@@ -435,17 +443,17 @@ header .logo {
 */
 
 .hero-heading {
-  margin: 28px 0 24px;
+  margin: 20px 0 16px;
 
   max-width: 780px;
 
   font-family: var(--font-pixel);
 
-  font-size: clamp(2.8rem, 5vw, 5.6rem);
+  font-size: clamp(1rem, 2.4vw, 1.35rem);
 
-  line-height: 0.98;
+  line-height: 1.5;
 
-  letter-spacing: -0.045em;
+  letter-spacing: 0;
 
   text-transform: uppercase;
 
@@ -705,13 +713,13 @@ header .logo {
 .wishlist-view-button,
 .product-add-cart,
 .review-submit-button {
-  min-height: 48px;
+  min-height: 40px;
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  padding: 12px 18px;
+  padding: 8px 14px;
 
   border: 1px solid #fff !important;
   border-radius: 0 !important;
@@ -725,7 +733,7 @@ header .logo {
 
   text-transform: uppercase;
 
-  box-shadow: 5px 5px 0 #444;
+  box-shadow: 3px 3px 0 #444;
 
   transition:
     transform 0.15s ease,
@@ -751,13 +759,13 @@ header .logo {
 .cart-shop-button,
 .wishlist-remove-button,
 .product-wishlist-button {
-  min-height: 48px;
+  min-height: 40px;
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  padding: 12px 18px;
+  padding: 8px 14px;
 
   border: 1px solid #555 !important;
   border-radius: 0 !important;
@@ -793,9 +801,9 @@ header .logo {
 .section-title {
   position: relative;
 
-  margin: 70px 0 22px;
+  margin: 36px 0 16px;
 
-  padding: 18px 20px;
+  padding: 12px 14px;
 
   overflow: hidden;
 
@@ -803,7 +811,7 @@ header .logo {
 
   background: #0a0a0a;
 
-  font-size: clamp(1rem, 2vw, 1.5rem);
+  font-size: clamp(0.8rem, 1.4vw, 1rem);
 
   text-transform: uppercase;
 
@@ -916,7 +924,7 @@ header .logo {
 .carousel-slide h3 {
   margin-bottom: 16px;
 
-  font-size: clamp(1.6rem, 4vw, 3rem);
+  font-size: clamp(1rem, 1.8vw, 1.25rem);
 
   text-transform: uppercase;
 }
@@ -1292,9 +1300,9 @@ header .logo {
 ========================================================= */
 
 .newsletter-section {
-  margin-top: 70px;
+  margin-top: 40px;
 
-  padding: clamp(28px, 5vw, 55px);
+  padding: clamp(20px, 3vw, 32px);
 
   background: #fff;
 
@@ -1306,7 +1314,7 @@ header .logo {
 }
 
 .newsletter-section h2 {
-  font-size: clamp(1.3rem, 3vw, 2.5rem);
+  font-size: clamp(0.95rem, 1.8vw, 1.25rem);
 
   text-transform: uppercase;
 }
@@ -1357,25 +1365,19 @@ header .logo {
 
 footer {
   margin-top: 80px;
-
   border-top: 1px solid #333;
-
   background: #080808;
 }
 
 .footer-inner {
   width: min(var(--max-width), calc(100% - 40px));
-
   margin: 0 auto;
-
   padding: 55px 0;
 }
 
 .footer-grid {
   display: grid;
-
   grid-template-columns: 2fr 1fr 1fr 1fr;
-
   gap: 30px;
 }
 
@@ -1385,13 +1387,11 @@ footer {
 
 .footer-brand img {
   width: 90px;
-
   filter: grayscale(1) brightness(1.4);
 }
 
 .footer-brand p {
   margin-top: 14px;
-
   color: #777;
 }
 
@@ -1403,15 +1403,12 @@ footer {
 
 .footer-column h3 {
   margin-bottom: 8px;
-
   font-size: 0.55rem;
-
   text-transform: uppercase;
 }
 
 .footer-column a {
   color: #777;
-
   font-size: 0.85rem;
 }
 
@@ -1421,13 +1418,9 @@ footer {
 
 .footer-bottom {
   margin-top: 45px;
-
   padding-top: 20px;
-
   border-top: 1px solid #222;
-
   color: #555;
-
   font-size: 0.75rem;
 }
 
@@ -1611,7 +1604,7 @@ footer {
 }
 
 .product-detail-info {
-  padding: 38px;
+  padding: 20px;
 
   border: 1px solid #333;
 
@@ -1619,9 +1612,9 @@ footer {
 }
 
 .product-detail-info h1 {
-  font-size: clamp(1.5rem, 3vw, 3.2rem);
+  font-size: clamp(0.95rem, 1.8vw, 1.25rem);
 
-  line-height: 1.05;
+  line-height: 1.5;
 
   text-transform: uppercase;
 }
@@ -2682,17 +2675,17 @@ footer {
   text-transform: uppercase;
 }
 
-.checkout-field input,
-.checkout-field textarea,
-.checkout-field select,
-.form-group input,
-.form-group textarea,
-.form-group select,
-.account-profile-field input,
-.account-profile-field textarea {
+.checkout-field input:not([data-slot]),
+.checkout-field textarea:not([data-slot]),
+.checkout-field select:not([data-slot]),
+.form-group input:not([data-slot]),
+.form-group textarea:not([data-slot]),
+.form-group select:not([data-slot]),
+.account-profile-field input:not([data-slot]),
+.account-profile-field textarea:not([data-slot]) {
   width: 100%;
 
-  padding: 13px;
+  padding: 8px 10px;
 
   border: 1px solid #444 !important;
   border-radius: 0 !important;
@@ -2704,12 +2697,12 @@ footer {
   color: #fff !important;
 }
 
-.checkout-field input:focus,
-.checkout-field textarea:focus,
-.checkout-field select:focus,
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
+.checkout-field input:not([data-slot]):focus,
+.checkout-field textarea:not([data-slot]):focus,
+.checkout-field select:not([data-slot]):focus,
+.form-group input:not([data-slot]):focus,
+.form-group textarea:not([data-slot]):focus,
+.form-group select:not([data-slot]):focus {
   border-color: #fff !important;
 }
 
@@ -2747,29 +2740,29 @@ footer {
   align-items: center;
   justify-content: center;
 
-  padding: 50px 20px 90px;
+  padding: 32px 16px 48px;
 }
 
 .auth-card {
-  width: min(540px, 100%);
+  width: min(480px, 100%);
 
-  padding: 42px !important;
+  padding: 24px !important;
 
   border: 1px solid #444 !important;
   border-radius: 0 !important;
 
   background: #0c0c0c !important;
 
-  box-shadow: 10px 10px 0 #171717 !important;
+  box-shadow: 4px 4px 0 #171717 !important;
 }
 
 .auth-card h1,
 .auth-header h1 {
   margin-bottom: 14px;
 
-  font-size: clamp(1.6rem, 4vw, 3rem);
+  font-size: clamp(0.95rem, 1.8vw, 1.25rem);
 
-  line-height: 1.05;
+  line-height: 1.5;
 
   text-transform: uppercase;
 }
@@ -3225,7 +3218,7 @@ footer {
   }
 
   .hero-heading {
-    font-size: clamp(2.4rem, 5vw, 4.5rem);
+    font-size: clamp(1rem, 2.4vw, 1.35rem);
   }
 
   .hero-board-scene {
@@ -3242,6 +3235,10 @@ footer {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .cart-layout,
   .checkout-layout {
     grid-template-columns: 1fr;
@@ -3256,9 +3253,6 @@ footer {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .footer-grid {
-    grid-template-columns: 1fr 1fr;
-  }
 }
 
 @media (max-width: 760px) {
@@ -3281,7 +3275,7 @@ footer {
   .account-profile-container {
     width: min(100% - 24px, var(--max-width));
 
-    padding-top: 38px;
+    padding-top: 24px;
   }
 
   .header-inner {
@@ -3303,17 +3297,17 @@ footer {
 
     grid-template-columns: 1fr;
 
-    padding: 50px 0 60px;
+    padding: 24px 0 32px;
 
-    gap: 40px;
+    gap: 24px;
   }
 
   .hero-heading {
     max-width: 100%;
 
-    font-size: clamp(2.2rem, 9vw, 4rem);
+    font-size: clamp(0.95rem, 4vw, 1.2rem);
 
-    line-height: 1;
+    line-height: 1.5;
   }
 
   .hero-board-scene {
@@ -3327,6 +3321,10 @@ footer {
   .featured-grid,
   .product-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr;
   }
 
   .product-detail-main {
@@ -3432,10 +3430,6 @@ footer {
     grid-column: 1;
   }
 
-  .footer-grid {
-    grid-template-columns: 1fr;
-  }
-
   .account-orders-page {
     padding-top: 30px;
   }
@@ -3505,7 +3499,7 @@ footer {
   }
 
   .hero-heading {
-    font-size: 2.35rem;
+    font-size: 1rem;
   }
 
   .hero-buttons {
@@ -3532,7 +3526,7 @@ footer {
   }
 
   .auth-card {
-    padding: 26px !important;
+    padding: 20px !important;
   }
 
   .newsletter-section {

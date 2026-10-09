@@ -17,7 +17,7 @@ export const checkboxVariants = cva("", {
     },
   },
   defaultVariants: {
-    font: "retro",
+    font: "normal",
   },
 });
 
@@ -27,25 +27,24 @@ export interface BitCheckboxProps
   asChild?: boolean;
 }
 
-function Checkbox({ className, font, ...props }: BitCheckboxProps) {
+function Checkbox({ className, font = "normal", ...props }: BitCheckboxProps) {
   return (
     <div
       className={cn(
-        "relative flex items-center justify-center border-y-6 border-foreground dark:border-ring",
+        "relative flex items-center justify-center border-y-2 border-foreground dark:border-ring",
         className
       )}
     >
       <ShadcnCheckbox
         className={cn(
-          "rounded-none size-5 ring-0 border-none",
+          "size-4 rounded-none border-none ring-0",
           font !== "normal" && "retro",
-          className
         )}
         {...props}
       />
 
       <div
-        className="absolute inset-0 border-x-6 -mx-1.5 border-foreground dark:border-ring pointer-events-none"
+        className="pointer-events-none absolute inset-0 border-x-2 border-foreground dark:border-ring"
         aria-hidden="true"
       />
     </div>

@@ -19,7 +19,7 @@ export const radioGroupVariants = cva("", {
     },
   },
   defaultVariants: {
-    font: "retro",
+    font: "normal",
   },
 });
 
