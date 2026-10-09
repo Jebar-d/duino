@@ -98,9 +98,26 @@ try {
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['user_email'] = $user['email'];
 
-    $roleStatement = $db->prepare('SELECT role FROM users WHERE id = :id LIMIT 1');
+    $roleStatement = $db->prepare('SELECT role, is_disabled FROM users WHERE id = :id LIMIT 1');
     $roleStatement->execute([':id' => $user['id']]);
-    $user['role'] = (string) ($roleStatement->fetchColumn() ?: 'user');
+    $account = $roleStatement->fetch(PDO::FETCH_ASSOC);
+    if (!$account) {
+        http_response_code(401);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Invalid email or password.'
+        ]);
+        exit;
+    }
+    if ((bool) $account['is_disabled']) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'message' => 'This account is disabled.'
+        ]);
+        exit;
+    }
+    $user['role'] = (string) $account['role'];
 
     unset($user['password_hash']);
 

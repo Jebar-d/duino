@@ -92,9 +92,20 @@ try {
         exit;
     }
 
-    $verification = $db->prepare('SELECT email_verified, role FROM users WHERE id = :id LIMIT 1');
+    $verification = $db->prepare('SELECT email_verified, role, is_disabled FROM users WHERE id = :id LIMIT 1');
     $verification->execute(['id' => $_SESSION['user_id']]);
     $accountRow = $verification->fetch(PDO::FETCH_ASSOC) ?: [];
+    if ((bool) ($accountRow['is_disabled'] ?? false)) {
+        session_unset();
+        session_destroy();
+        http_response_code(401);
+        echo json_encode([
+            'success' => false,
+            'message' => 'This account is disabled.',
+            'user' => null
+        ]);
+        exit;
+    }
     $user['email_verified'] = (bool) ($accountRow['email_verified'] ?? false);
     $user['role'] = (string) ($accountRow['role'] ?? 'user');
     $decodedAddresses = $user['extra_addresses'] !== null

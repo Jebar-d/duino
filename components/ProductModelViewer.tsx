@@ -2,6 +2,8 @@
 
 import "@google/model-viewer";
 import {
+  useCallback,
+  useEffect,
   useRef,
   useState,
   type ComponentType,
@@ -9,6 +11,10 @@ import {
   type HTMLAttributes,
   type Ref,
 } from "react";
+import {
+  getLegacyProductAssetUrl,
+  getPreferredProductModelUrl,
+} from "../lib/product-assets";
 
 type ModelViewerElement = HTMLElement & {
   cameraOrbit: string;
@@ -51,9 +57,45 @@ export default function ProductModelViewer({
   productName: string;
   poster: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [activeModelUrl, setActiveModelUrl] = useState(() =>
+    getPreferredProductModelUrl(modelUrl),
+  );
+  const [failedModelUrl, setFailedModelUrl] = useState<string | null>(null);
+  const warnedModelUrls = useRef(new Set<string>());
   const viewerRef = useRef<ModelViewerElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+
+  const handleModelError = useCallback(() => {
+    if (activeModelUrl === modelUrl) {
+      const legacyUrl = getLegacyProductAssetUrl(modelUrl);
+
+      if (legacyUrl) {
+        setActiveModelUrl(legacyUrl);
+        return;
+      }
+    }
+
+    setFailedModelUrl(modelUrl);
+
+    if (!warnedModelUrls.current.has(activeModelUrl)) {
+      console.warn("Unable to load 3D model:", activeModelUrl);
+      warnedModelUrls.current.add(activeModelUrl);
+    }
+  }, [activeModelUrl, modelUrl]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+
+    if (!viewer) {
+      return;
+    }
+
+    viewer.addEventListener("error", handleModelError);
+
+    return () => {
+      viewer.removeEventListener("error", handleModelError);
+    };
+  }, [handleModelError]);
 
   function zoom(factor: number) {
     const viewer = viewerRef.current;
@@ -86,7 +128,7 @@ export default function ProductModelViewer({
     }
   }
 
-  if (failed) {
+  if (failedModelUrl === modelUrl) {
     return (
       <div className="product-model-fallback" role="status">
         This 3D model could not be loaded. Please use the product images instead.
@@ -98,7 +140,7 @@ export default function ProductModelViewer({
     <div className="product-model-viewer-wrap" ref={wrapRef}>
       <ModelViewer
         ref={viewerRef}
-        src={modelUrl}
+        src={activeModelUrl}
         alt={`Interactive 3D model of ${productName}`}
         cameraControls
         autoRotate
@@ -114,7 +156,6 @@ export default function ProductModelViewer({
         field-of-view="auto"
         zoom-sensitivity="1.6"
         className="product-model-viewer"
-        onError={() => setFailed(true)}
       />
 
       <div className="product-model-toolbar" role="group" aria-label="3D controls">
@@ -127,4 +168,3 @@ export default function ProductModelViewer({
     </div>
   );
 }
-

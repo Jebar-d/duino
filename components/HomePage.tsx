@@ -7,6 +7,10 @@ import { Check, Clock3, Info, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../lib/api";
+import {
+  getProductImageUrl,
+  handleProductImageError,
+} from "../lib/product-assets";
 
 type Product = {
   id: string;
@@ -1237,9 +1241,10 @@ export default function HomePage() {
                 >
                   <div className="featured-image">
                     <img
-                      src={product.img_url || "/product.png"}
+                      src={getProductImageUrl(product.img_url)}
                       alt={product.name}
                       loading="lazy"
+                      onError={handleProductImageError}
                     />
 
                     <div className="featured-badge">

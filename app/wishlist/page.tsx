@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "../../lib/api";
+import {
+  getProductImageUrl,
+  handleProductImageError,
+} from "../../lib/product-assets";
 
 type Product = {
   id: string;
@@ -137,11 +141,9 @@ export default function WishlistPage() {
                   className="wishlist-image-link"
                 >
                   <img
-                    src={item.product.img_url || "/product.png"}
+                    src={getProductImageUrl(item.product.img_url)}
                     alt={item.product.name}
-                    onError={(event) => {
-                      event.currentTarget.src = "/product.png";
-                    }}
+                    onError={handleProductImageError}
                   />
                 </Link>
 

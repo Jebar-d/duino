@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { Check, Circle, Eye, EyeOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../../lib/api";
 
@@ -223,7 +223,11 @@ export default function SignupPage() {
                       className={`pw-req ${passwordLength ? "met" : "unmet"}`}
                     >
                       <span className="pw-req-icon">
-                        {passwordLength ? "âœ“" : "â—‹"}
+                        {passwordLength ? (
+                          <Check size={14} aria-hidden="true" />
+                        ) : (
+                          <Circle size={12} aria-hidden="true" />
+                        )}
                       </span>
                       At least 8 characters
                     </div>
@@ -232,7 +236,11 @@ export default function SignupPage() {
                       className={`pw-req ${passwordUpper ? "met" : "unmet"}`}
                     >
                       <span className="pw-req-icon">
-                        {passwordUpper ? "âœ“" : "â—‹"}
+                        {passwordUpper ? (
+                          <Check size={14} aria-hidden="true" />
+                        ) : (
+                          <Circle size={12} aria-hidden="true" />
+                        )}
                       </span>
                       At least 1 uppercase letter
                     </div>
@@ -241,7 +249,11 @@ export default function SignupPage() {
                       className={`pw-req ${passwordNumber ? "met" : "unmet"}`}
                     >
                       <span className="pw-req-icon">
-                        {passwordNumber ? "âœ“" : "â—‹"}
+                        {passwordNumber ? (
+                          <Check size={14} aria-hidden="true" />
+                        ) : (
+                          <Circle size={12} aria-hidden="true" />
+                        )}
                       </span>
                       At least 1 number
                     </div>
@@ -344,7 +356,7 @@ export default function SignupPage() {
                     }}
                   >
                     {" "}
-                    (11â€“13 digits)
+                    (11 to 13 digits)
                   </small>
                 </label>
 
@@ -531,7 +543,7 @@ export default function SignupPage() {
                 marginBottom: "1rem",
               }}
             >
-              âœ“
+              <Check size={52} strokeWidth={2.5} aria-hidden="true" />
             </div>
 
             <h2
@@ -568,5 +580,4 @@ export default function SignupPage() {
     </>
   );
 }
-
 

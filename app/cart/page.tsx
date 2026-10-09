@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "../../lib/api";
+import {
+  getProductImageUrl,
+  handleProductImageError,
+} from "../../lib/product-assets";
 
 type Product = {
   id: string;
@@ -198,11 +202,9 @@ export default function CartPage() {
                       className="cart-item-image"
                     >
                       <img
-                        src={product.img_url || "/product.png"}
+                        src={getProductImageUrl(product.img_url)}
                         alt={product.name}
-                        onError={(event) => {
-                          event.currentTarget.src = "/product.png";
-                        }}
+                        onError={handleProductImageError}
                       />
                     </Link>
 

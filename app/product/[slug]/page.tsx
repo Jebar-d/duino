@@ -6,6 +6,10 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "../../../lib/api";
+import {
+  getProductImageUrl,
+  handleProductImageError,
+} from "../../../lib/product-assets";
 
 const ProductModelViewer = dynamic(
   () => import("../../../components/ProductModelViewer"),
@@ -531,17 +535,16 @@ export default function ProductDetailPage() {
 
             {selectedMedia === "model" && modelUrl ? (
               <ProductModelViewer
+                key={modelUrl}
                 modelUrl={modelUrl}
                 productName={product.name}
-                poster={product.img_url || "/product.png"}
+                poster={getProductImageUrl(product.img_url)}
               />
             ) : (
               <img
-                src={product.img_url || "/product.png"}
+                src={getProductImageUrl(product.img_url)}
                 alt={product.name}
-                onError={(event) => {
-                  event.currentTarget.src = "/product.png";
-                }}
+                onError={handleProductImageError}
               />
             )}
 
@@ -661,7 +664,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        <section className="product-reviews-section">
+        <section className="product-reviews-section" id="reviews">
           <div className="product-reviews-header">
             <div>
               <h2>Customer Reviews</h2>

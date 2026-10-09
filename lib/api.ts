@@ -5,11 +5,13 @@ export async function apiFetch<T>(
   endpoint: string,
   options?: RequestInit,
 ): Promise<T> {
+  const isFormData =
+    typeof FormData !== "undefined" && options?.body instanceof FormData;
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(options?.headers || {}),
     },
   });

@@ -176,6 +176,35 @@ try {
 
     $products = $statement->fetchAll();
 
+    if ($products !== []) {
+        $placeholders = [];
+        $variantParams = [];
+        foreach ($products as $index => $product) {
+            $placeholder = ':product_' . $index;
+            $placeholders[] = $placeholder;
+            $variantParams[$placeholder] = $product['id'];
+        }
+
+        $variantQuery = $db->prepare(
+            'SELECT id, product_id, variant_name, option_value, price_adjustment, stock, img_url
+             FROM variants
+             WHERE product_id IN (' . implode(', ', $placeholders) . ')
+             ORDER BY variant_name, option_value'
+        );
+        $variantQuery->execute($variantParams);
+        $variantsByProduct = [];
+        foreach ($variantQuery->fetchAll(PDO::FETCH_ASSOC) as $variant) {
+            $variant['price_adjustment'] = (int) $variant['price_adjustment'];
+            $variant['stock'] = (int) $variant['stock'];
+            $variantsByProduct[$variant['product_id']][] = $variant;
+        }
+
+        foreach ($products as &$product) {
+            $product['variants'] = $variantsByProduct[$product['id']] ?? [];
+        }
+        unset($product);
+    }
+
 
     // --------------------------------------------------------
     // Convert JSON database fields

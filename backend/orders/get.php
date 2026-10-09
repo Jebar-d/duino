@@ -124,6 +124,7 @@ try {
     }
 
     $order = buildOrderResponse($pdo, $order);
+    $order = addOrderRefundAndActions($pdo, $order);
 
     echo json_encode([
         "success" => true,

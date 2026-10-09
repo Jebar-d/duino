@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "../../../../lib/api";
+import {
+  getProductImageUrl,
+  handleProductImageError,
+} from "../../../../lib/product-assets";
 
 type OrderItem = {
   id: string;
@@ -56,6 +60,10 @@ type Order = {
   email_confirmed: boolean;
   items: OrderItem[];
   item_count: number;
+  history?: { id?: string; status: string; note: string | null; created_at: string }[];
+  refund_request?: { id: string; status: string; reason: string | null; admin_note: string | null; created_at?: string; resolved_at?: string | null } | null;
+  can_cancel?: boolean;
+  can_request_refund?: boolean;
 };
 
 type EditableOrderItem = {
@@ -68,6 +76,53 @@ type EditableOrderItem = {
   price_cents: number;
 };
 
+function buildTrackingTimeline(order: Order) {
+  const history = order.history ?? [];
+  const terminalStatus = ["cancelled", "refunded"].includes(order.status.toLowerCase())
+    ? order.status.toLowerCase()
+    : "";
+  const timeline: { label: string; created_at?: string }[] = [
+    { label: "Placed", created_at: order.created_at },
+  ];
+
+  if (terminalStatus) {
+    const terminalEvent = [...history].reverse().find(
+      (entry) => entry.status.toLowerCase() === terminalStatus,
+    );
+    timeline.push({
+      label: terminalStatus === "cancelled" ? "Cancelled" : "Refunded",
+      created_at:
+        terminalEvent?.created_at ||
+        (terminalStatus === "cancelled" ? order.cancelled_at || undefined : order.refund_request?.resolved_at || undefined),
+    });
+    return timeline;
+  }
+
+  const currentStage = order.tracking_status.toLowerCase();
+  const stages = [
+    { key: "packed", label: "Packed" },
+    { key: "shipped", label: "Shipped" },
+    { key: "out_for_delivery", label: "Out for delivery" },
+    { key: "delivered", label: "Delivered" },
+  ];
+  const currentStageIndex = stages.findIndex((stage) => stage.key === currentStage);
+
+  for (const [index, stage] of stages.entries()) {
+    const event = [...history].reverse().find((entry) => {
+      const note = entry.note?.toLowerCase() ?? "";
+      return (
+        entry.status.toLowerCase() === stage.key ||
+        note.includes(`tracking status: ${stage.key}`)
+      );
+    });
+    if (event || (currentStageIndex >= index && currentStageIndex !== -1)) {
+      timeline.push({ label: stage.label, created_at: event?.created_at });
+    }
+  }
+
+  return timeline;
+}
+
 export default function OrderDetailsPage() {
   const params = useParams();
   const orderId = params.id as string;
@@ -75,6 +130,12 @@ export default function OrderDetailsPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionType, setActionType] = useState<"cancel" | "refund" | null>(null);
+  const [actionReason, setActionReason] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [actionSaving, setActionSaving] = useState(false);
+  const [productSlugs, setProductSlugs] = useState<Record<string, string>>({});
+  const [productSlugError, setProductSlugError] = useState("");
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [isSavingAddress, setIsSavingAddress] = useState(false);
   const [addressError, setAddressError] = useState("");
@@ -96,26 +157,70 @@ export default function OrderDetailsPage() {
   const [itemPendingRemoval, setItemPendingRemoval] =
     useState<EditableOrderItem | null>(null);
 
+  const refreshOrder = useCallback(async () => {
+    const data = await apiFetch<{ success: boolean; order: Order }>(
+      `/orders/get.php?id=${encodeURIComponent(orderId)}`,
+    );
+    setOrder(data.order);
+    setError("");
+    return data.order;
+  }, [orderId]);
+  const shouldLoadProductSlugs = Boolean(
+    order &&
+      (["delivered", "completed"].includes(order.status.toLowerCase()) ||
+        order.tracking_status.toLowerCase() === "delivered"),
+  );
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      apiFetch<{ success: boolean; order: Order }>(
-        `/orders/get.php?id=${encodeURIComponent(orderId)}`,
-      )
-        .then((data) => {
-          setOrder(data.order);
-        })
-        .catch((err) => {
-          setError(
-            err instanceof Error ? err.message : "Unable to load the order.",
-          );
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+      refreshOrder()
+        .catch((err) => setError(err instanceof Error ? err.message : "Unable to load the order."))
+        .finally(() => setLoading(false));
     }, 0);
-
     return () => window.clearTimeout(timer);
-  }, [orderId]);
+  }, [refreshOrder]);
+
+  useEffect(() => {
+    if (!shouldLoadProductSlugs) return;
+    let cancelled = false;
+    apiFetch<{ success: boolean; products: { id: string; slug: string }[] }>("/products/list.php")
+      .then((data) => {
+        if (!cancelled) {
+          setProductSlugs(Object.fromEntries((data.products || []).map((product) => [product.id, product.slug])));
+          setProductSlugError("");
+        }
+      })
+      .catch((loadError) => {
+        if (!cancelled) {
+          setProductSlugError(loadError instanceof Error ? loadError.message : "Unable to load product review links.");
+        }
+      });
+    return () => { cancelled = true; };
+  }, [order?.id, shouldLoadProductSlugs]);
+
+  async function submitOrderAction() {
+    if (!order || !actionType) return;
+    const reason = actionReason.trim();
+    if (!reason || (actionType === "refund" && (reason.length < 10 || reason.length > 500))) {
+      setActionError(actionType === "refund" ? "Reason must be 10–500 characters." : "A cancellation reason is required.");
+      return;
+    }
+    try {
+      setActionSaving(true);
+      setActionError("");
+      await apiFetch(actionType === "cancel" ? "/orders/cancel.php" : "/refunds/request.php", {
+        method: "POST",
+        body: JSON.stringify({ order_id: order.id, reason }),
+      });
+      await refreshOrder();
+      setActionType(null);
+      setActionReason("");
+    } catch (actionFailure) {
+      setActionError(actionFailure instanceof Error ? actionFailure.message : "Unable to update this order.");
+    } finally {
+      setActionSaving(false);
+    }
+  }
 
   const formatPrice = (cents: number) => {
     return `₱${(cents / 100).toLocaleString("en-PH", {
@@ -354,6 +459,14 @@ export default function OrderDetailsPage() {
   }
 
   const shippingAddress = getShippingAddress();
+  const trackingTimeline = buildTrackingTimeline(order);
+  const delivered =
+    ["delivered", "completed"].includes(order.status.toLowerCase()) ||
+    order.tracking_status.toLowerCase() === "delivered";
+  const canRequestRefund =
+    order.can_request_refund &&
+    (order.status.toLowerCase() === "delivered" ||
+      order.tracking_status.toLowerCase() === "delivered");
 
   return (
     <main className="account-order-details-page">
@@ -391,7 +504,11 @@ export default function OrderDetailsPage() {
               {isEditingItems ? itemsDraft.map((item) => (
                 <div className="account-order-details-item" key={item.key}>
                   <div className="account-order-details-item-image">
-                    <img src={item.product_img || "/product.png"} alt="" />
+                    <img
+                      src={getProductImageUrl(item.product_img)}
+                      alt=""
+                      onError={handleProductImageError}
+                    />
                   </div>
                   <div className="account-order-details-item-info">
                     <strong>{item.product_name}</strong>
@@ -418,9 +535,9 @@ export default function OrderDetailsPage() {
                 <div className="account-order-details-item" key={item.id}>
                   <div className="account-order-details-item-image">
                     <img
-                      src={item.product_img || "/product.png"}
+                      src={getProductImageUrl(item.product_img)}
                       alt={item.product_name || "Product"}
-                      onError={(event) => { event.currentTarget.src = "/product.png"; }}
+                      onError={handleProductImageError}
                     />
                   </div>
                   <div className="account-order-details-item-info">
@@ -499,6 +616,17 @@ export default function OrderDetailsPage() {
                   <strong>{formatDate(order.expected_delivery)}</strong>
                 </div>
               )}
+              {order.refund_request && (
+                <div>
+                  <span>Refund status</span>
+                  <span className={`account-order-refund-status ${order.refund_request.status.toLowerCase()}`}>
+                    {formatStatus(order.refund_request.status)}
+                  </span>
+                  {order.refund_request.admin_note && (
+                    <p>Admin note: {order.refund_request.admin_note}</p>
+                  )}
+                </div>
+              )}
 
               <div className="account-order-summary-total">
                 <span>Total</span>
@@ -506,6 +634,41 @@ export default function OrderDetailsPage() {
               </div>
             </div>
           </section>
+
+          <section className="account-order-details-card account-order-tracking-timeline">
+            <div className="account-order-details-card-header"><h2>Tracking timeline</h2></div>
+            <ol>
+              {trackingTimeline.map((event, index) => (
+                <li key={`${event.label}-${event.created_at || index}`}>
+                  <strong>{event.label}</strong>
+                  <time>{event.created_at ? formatDateTime(event.created_at) : "Time unavailable"}</time>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          {delivered && (
+            <section className="account-order-details-card">
+              <div className="account-order-details-card-header"><h2>Rate your items</h2></div>
+              <ul className="account-order-rate-items">
+                {order.items.map((item) => {
+                  const slug = item.product_id ? productSlugs[item.product_id] : "";
+                  return (
+                    <li key={item.id}>
+                      {slug ? (
+                        <Link href={`/product/${encodeURIComponent(slug)}#reviews`}>
+                          {item.product_name || "Product"} — Write a review
+                        </Link>
+                      ) : (
+                        <span>{item.product_name || "Product"} — Review link unavailable</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              {productSlugError && <p className="account-order-address-error">{productSlugError}</p>}
+            </section>
+          )}
 
           <section className="account-order-details-card">
             <div className="account-order-details-card-header">
@@ -713,10 +876,50 @@ export default function OrderDetailsPage() {
         </div>
 
         <div className="account-order-details-actions">
+          {order.can_cancel && (
+            <button type="button" onClick={() => {
+              setActionType("cancel");
+              setActionReason("");
+              setActionError("");
+            }}>Cancel order</button>
+          )}
+          {canRequestRefund && (
+            <button type="button" onClick={() => {
+              setActionType("refund");
+              setActionReason("");
+              setActionError("");
+            }}>Request refund</button>
+          )}
           <Link href="/account/orders">Back to My Orders</Link>
           <Link href="/products">Continue Shopping</Link>
         </div>
       </div>
+
+      {actionType && (
+        <div className="account-item-remove-backdrop">
+          <section className="account-item-remove-dialog" role="dialog" aria-modal="true" aria-labelledby="order-action-title">
+            <span className="account-item-remove-eyebrow">Order action</span>
+            <h2 id="order-action-title">{actionType === "cancel" ? "Cancel this order?" : "Request a refund?"}</h2>
+            <label>
+              Reason
+              <textarea
+                required
+                minLength={actionType === "refund" ? 10 : 1}
+                maxLength={500}
+                value={actionReason}
+                onChange={(event) => setActionReason(event.target.value)}
+              />
+            </label>
+            {actionError && <p className="account-order-address-error">{actionError}</p>}
+            <div className="account-item-remove-actions">
+              <button type="button" disabled={actionSaving} onClick={() => setActionType(null)}>Keep order</button>
+              <button type="button" disabled={actionSaving} onClick={() => void submitOrderAction()}>
+                {actionSaving ? "Submitting…" : actionType === "cancel" ? "Confirm cancellation" : "Submit request"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {itemPendingRemoval && (
         <div className="account-item-remove-backdrop">

@@ -42,3 +42,56 @@ function buildOrderResponse(PDO $pdo, array $order): array
 
     return $order;
 }
+
+function addOrderRefundAndActions(PDO $pdo, array $order): array
+{
+    $refundQuery = $pdo->prepare(
+        'SELECT id, status, reason, admin_note, created_at
+         FROM refund_requests
+         WHERE order_id = :order_id
+         LIMIT 1'
+    );
+    $refundQuery->execute(['order_id' => $order['id']]);
+    $refund = $refundQuery->fetch(PDO::FETCH_ASSOC);
+
+    $order['refund_request'] = $refund ?: null;
+    $order['can_cancel'] = $order['status'] === 'pending'
+        || ($order['status'] === 'paid' && ($order['tracking_status'] ?? null) === 'processing');
+
+    $eligibleStatus = in_array(
+        $order['status'],
+        ['paid', 'shipped', 'delivered', 'completed'],
+        true
+    );
+    $refundWindowQuery = $pdo->prepare(
+        "SELECT TIMESTAMPDIFF(
+            SECOND,
+            COALESCE(
+                (
+                    SELECT created_at
+                    FROM order_status_history
+                    WHERE order_id = :history_order_id AND status = 'delivered'
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                ),
+                :created_at
+            ),
+            NOW()
+        )"
+    );
+    $refundWindowQuery->execute([
+        'history_order_id' => $order['id'],
+        'created_at' => $order['created_at'],
+    ]);
+    $ageInSeconds = $refundWindowQuery->fetchColumn();
+    $withinRefundWindow = $ageInSeconds !== false
+        && $ageInSeconds !== null
+        && (int) $ageInSeconds >= 0
+        && (int) $ageInSeconds <= 7 * 24 * 60 * 60;
+
+    $order['can_request_refund'] = $eligibleStatus
+        && $refund === false
+        && $withinRefundWindow;
+
+    return $order;
+}

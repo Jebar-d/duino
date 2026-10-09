@@ -1,9 +1,22 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { apiFetch, API_BASE } from "../../lib/api";
-import { Activity, Banknote, BarChart3, Box, ChartNoAxesColumnIncreasing, KeyRound, LayoutDashboard, LogOut, Package, Percent, RotateCcw, Tags, TicketPercent, Truck, Users } from "lucide-react";
+import {
+  getProductImageUrl,
+  handleProductImageError,
+} from "../../lib/product-assets";
+import { Activity, Banknote, BarChart3, Box, ChartNoAxesColumnIncreasing, KeyRound, LayoutDashboard, LogOut, Mail, Package, Percent, RotateCcw, Tags, TicketPercent, Truck, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+
+const ProductModelViewer = dynamic(
+  () => import("../../components/ProductModelViewer"),
+  {
+    ssr: false,
+    loading: () => <div className="product-model-loading">Loading 3D model...</div>,
+  },
+);
 
 type User = {
   id: string;
@@ -42,9 +55,19 @@ type Product = {
   stock: number;
   description?: string | null;
   img_url?: string | null;
+  model_url?: string | null;
   category_id?: string | null;
   sku?: string | null;
   category_name?: string | null;
+};
+
+type ProductVariant = {
+  id?: string;
+  product_id?: string;
+  variant_name: string;
+  option_value: string;
+  price_adjustment: number;
+  stock: number;
 };
 
 type Order = {
@@ -126,22 +149,33 @@ function monthLabel(value: string) {
 
 // Accepts both the old and the new backend field names so the charts never
 // get an undefined key/label.
-function normalizeAnalytics(raw: RawAnalytics): AnalyticsData {
+function normalizeAnalytics(raw: RawAnalytics | null | undefined): AnalyticsData {
+  const monthlyRevenue = Array.isArray(raw?.monthly_revenue)
+    ? raw.monthly_revenue
+    : [];
+  const paymentMethods = Array.isArray(raw?.payment_methods)
+    ? raw.payment_methods
+    : [];
+  const orderStatuses = Array.isArray(raw?.order_statuses)
+    ? raw.order_statuses
+    : [];
+  const topProducts = Array.isArray(raw?.top_products) ? raw.top_products : [];
+
   return {
-    total_revenue_cents: raw.total_revenue_cents ?? 0,
-    month_revenue_cents: raw.month_revenue_cents ?? 0,
-    total_orders: raw.total_orders ?? 0,
-    paid_orders: raw.paid_orders ?? 0,
-    pending_orders: raw.pending_orders ?? 0,
-    cancelled_orders: raw.cancelled_orders ?? 0,
-    monthly_revenue: (raw.monthly_revenue ?? []).map((item, index) => ({
+    total_revenue_cents: raw?.total_revenue_cents ?? 0,
+    month_revenue_cents: raw?.month_revenue_cents ?? 0,
+    total_orders: raw?.total_orders ?? 0,
+    paid_orders: raw?.paid_orders ?? 0,
+    pending_orders: raw?.pending_orders ?? 0,
+    cancelled_orders: raw?.cancelled_orders ?? 0,
+    monthly_revenue: monthlyRevenue.map((item, index) => ({
       label: item.label ?? (item.month ? monthLabel(item.month) : `Month ${index + 1}`),
       revenue_cents: item.revenue_cents ?? 0,
       order_count: item.order_count ?? 0,
     })),
-    payment_methods: raw.payment_methods ?? [],
-    order_statuses: raw.order_statuses ?? [],
-    top_products: (raw.top_products ?? []).map((item) => ({
+    payment_methods: paymentMethods,
+    order_statuses: orderStatuses,
+    top_products: topProducts.map((item) => ({
       name: item.name ?? item.product_name ?? "Unknown product",
       img_url: item.img_url ?? null,
       qty: item.qty ?? item.units_sold ?? 0,
@@ -158,6 +192,7 @@ type Tab =
   | "promos"
   | "orders"
   | "users"
+  | "messages"
   | "refunds"
   | "admins";
 
@@ -174,6 +209,7 @@ const tabs: {
   { id: "promos", label: "Promos", icon: TicketPercent },
   { id: "orders", label: "Orders", icon: Truck, section: "Manage" },
   { id: "users", label: "Users", icon: Users },
+  { id: "messages", label: "Messages", icon: Mail },
   { id: "refunds", label: "Refunds", icon: RotateCcw },
   { id: "admins", label: "Admin Users", icon: KeyRound },
 ];
@@ -835,6 +871,7 @@ type ShippingAddress = {
   last_name?: string;
   contact_number?: string;
   address?: string;
+  address_line?: string;
   city?: string;
   province?: string;
   postal_code?: string;
@@ -842,8 +879,10 @@ type ShippingAddress = {
 
 type AdminOrder = {
   id: string;
-  user_id?: string;
+  user_id: string | null;
+  customer_email?: string | null;
   total_cents: number;
+  payment_status: string;
   promo_code: string | null;
   status: string;
   shipping_address: ShippingAddress | null;
@@ -858,10 +897,24 @@ type AdminOrder = {
   email_confirmed: boolean;
   items: OrderItemDetail[];
   item_count: number;
+  history: { id?: string; status: string; note: string | null; created_at: string }[];
 };
 
-type AdminOrderSummary = Omit<AdminOrder, "user_id" | "shipping_address"> & {
-  shipping_address: string | null;
+type AdminOrderSummary = Pick<
+  AdminOrder,
+  | "id"
+  | "total_cents"
+  | "status"
+  | "created_at"
+  | "payment_method"
+  | "payment_status"
+  | "tracking_status"
+  | "expected_delivery"
+  | "shipping_method"
+  | "customer_email"
+  | "item_count"
+> & {
+  user_id: string | null;
 };
 
 function OrdersView({
@@ -874,15 +927,28 @@ function OrdersView({
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [formStatus, setFormStatus] = useState("");
+  const [formTracking, setFormTracking] = useState("");
+  const [formDelivery, setFormDelivery] = useState("");
+  const [formNote, setFormNote] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  async function loadOrders() {
+  const loadOrders = useCallback(async () => {
     try {
       setLoadingOrders(true);
       const data = await apiFetch<{
         success: boolean;
         orders: AdminOrderSummary[];
-      }>("/orders/list.php");
+        pagination: { pages: number };
+      }>(
+        `/admin/orders.php?page=${page}&status=${encodeURIComponent(statusFilter)}&search=${encodeURIComponent(search.trim())}`,
+      );
       setOrders(data.orders ?? []);
+      setPages(data.pagination?.pages ?? 1);
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : "Failed to load orders.",
@@ -891,15 +957,12 @@ function OrdersView({
     } finally {
       setLoadingOrders(false);
     }
-  }
+  }, [page, search, showToast, statusFilter]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadOrders();
-    }, 0);
-
+    const timer = window.setTimeout(() => void loadOrders(), 250);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [loadOrders]);
 
   function formatDate(value: string) {
     return new Date(value.replace(" ", "T")).toLocaleString("en-PH", {
@@ -947,7 +1010,7 @@ function OrdersView({
     return [
       [value.first_name, value.last_name].filter(Boolean).join(" "),
       value.contact_number ?? "",
-      value.address ?? "",
+      value.address_line ?? value.address ?? "",
       [value.city, value.province, value.postal_code]
         .filter(Boolean)
         .join(", "),
@@ -962,7 +1025,14 @@ function OrdersView({
       const data = await apiFetch<{ success: boolean; order: AdminOrder }>(
         `/orders/get.php?id=${encodeURIComponent(orderId)}`,
       );
-      setSelectedOrder(data.order);
+      setSelectedOrder({
+        ...data.order,
+        customer_email: orders.find((order) => order.id === orderId)?.customer_email ?? null,
+      });
+      setFormStatus(data.order.status);
+      setFormTracking(data.order.tracking_status || "processing");
+      setFormDelivery(data.order.expected_delivery?.slice(0, 10) || "");
+      setFormNote("");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to load order details.";
@@ -974,6 +1044,50 @@ function OrdersView({
   }
 
   const selectedAddress = addressLines(selectedOrder?.shipping_address ?? null);
+  const orderLocked =
+    ["cancelled", "refunded"].includes(selectedOrder?.status.toLowerCase() ?? "");
+
+  async function saveOrderUpdate() {
+    if (!selectedOrder) return;
+    try {
+      setSaving(true);
+      const result = await apiFetch<{ success: boolean; message: string }>(
+        "/admin/order-update.php",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            order_id: selectedOrder.id,
+            status: formStatus,
+            tracking_status: formTracking,
+            expected_delivery: formDelivery,
+            note: formNote.trim() || null,
+          }),
+        },
+      );
+      showToast(result.message || "Order updated.", "success");
+      const [detail] = await Promise.all([
+        apiFetch<{ success: boolean; order: AdminOrder }>(
+          `/orders/get.php?id=${encodeURIComponent(selectedOrder.id)}`,
+        ),
+        loadOrders(),
+      ]);
+      setSelectedOrder({
+        ...detail.order,
+        customer_email: selectedOrder.customer_email ?? null,
+      });
+      setFormStatus(detail.order.status);
+      setFormTracking(detail.order.tracking_status || "processing");
+      setFormDelivery(detail.order.expected_delivery?.slice(0, 10) || "");
+      setFormNote("");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Unable to update order.",
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <>
@@ -981,6 +1095,22 @@ function OrdersView({
         <div>
           <div className="adm-ph-title">Orders</div>
           <div className="adm-ph-sub">View order details and customer delivery information.</div>
+        </div>
+      </div>
+
+      <div className="fr">
+        <div className="fg">
+          <label>Search order or customer email</label>
+          <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
+        </div>
+        <div className="fg">
+          <label>Status</label>
+          <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
+            <option value="">All statuses</option>
+            {["pending", "paid", "processing", "shipped", "delivered", "completed", "cancelled", "refunded"].map((status) => (
+              <option key={status} value={status}>{formatValue(status)}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -994,7 +1124,7 @@ function OrdersView({
               <th>Total</th>
               <th>Payment</th>
               <th>Status</th>
-              <th>Shipping Address</th>
+              <th>Items</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -1004,26 +1134,29 @@ function OrdersView({
             ) : orders.length === 0 ? (
               <tr><td colSpan={8}><div className="adm-empty">No orders found.</div></td></tr>
             ) : (
-              orders.map((order) => {
-                const address = addressLines(order.shipping_address);
-
-                return (
+              orders.map((order) => (
                   <tr key={order.id}>
                     <td className="adm-mono">#{order.id.substring(0, 8).toUpperCase()}</td>
-                    <td className="adm-muted">Unavailable</td>
+                    <td className="adm-muted">{order.customer_email || "—"}</td>
                     <td className="adm-muted adm-small">{formatDate(order.created_at)}</td>
                     <td>{money(order.total_cents)}</td>
                     <td>{formatPaymentMethod(order.payment_method)}</td>
                     <td><StatusBadge status={order.status} /></td>
-                    <td className="adm-small">{address.length ? address.join(", ") : "—"}</td>
+                    <td className="adm-small">{order.item_count}</td>
                     <td><button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => void viewOrder(order.id)}>View</button></td>
                   </tr>
-                );
-              })
+                ))
             )}
           </tbody>
         </table>
       </div>
+      {pages > 1 && (
+        <div className="adm-mf">
+          <button type="button" className="adm-btn adm-btn-o adm-btn-s" disabled={page <= 1 || loadingOrders} onClick={() => setPage((current) => current - 1)}>Previous</button>
+          <span className="adm-small adm-muted">Page {page} of {pages}</span>
+          <button type="button" className="adm-btn adm-btn-o adm-btn-s" disabled={page >= pages || loadingOrders} onClick={() => setPage((current) => current + 1)}>Next</button>
+        </div>
+      )}
 
       {(detailsLoading || selectedOrder || detailsError) && (
         <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Order details">
@@ -1045,13 +1178,14 @@ function OrdersView({
                     <div className="adm-order-info"><span>Order ID</span><strong className="adm-mono">{selectedOrder.id}</strong></div>
                     <div className="adm-order-info"><span>Order Date</span><strong>{formatDate(selectedOrder.created_at)}</strong></div>
                     <div className="adm-order-info"><span>Status</span><StatusBadge status={selectedOrder.status} /></div>
+                    <div className="adm-order-info"><span>Payment Status</span><StatusBadge status={selectedOrder.payment_status} /></div>
                     <div className="adm-order-info"><span>Order Total</span><strong>{money(selectedOrder.total_cents)}</strong></div>
                   </section>
 
                   <section className="an-section">
                     <h4>Customer Information</h4>
-                    <div className="adm-order-info"><span>Email</span><strong>Unavailable</strong></div>
-                    {selectedAddress.length ? selectedAddress.map((line) => <div className="adm-order-info" key={line}><span>{line === selectedAddress[0] ? "Recipient" : ""}</span><strong>{line}</strong></div>) : <div className="adm-muted adm-small">No customer details were saved.</div>}
+                    <div className="adm-order-info"><span>Email</span><strong>{selectedOrder.customer_email || "Unavailable"}</strong></div>
+                    {selectedAddress.length ? selectedAddress.map((line, index) => <div className="adm-order-info" key={`${index}-${line}`}><span>{line === selectedAddress[0] ? "Recipient" : ""}</span><strong>{line}</strong></div>) : <div className="adm-muted adm-small">No customer details were saved.</div>}
                   </section>
 
                   <section className="an-section">
@@ -1061,11 +1195,64 @@ function OrdersView({
                     <div className="adm-order-info"><span>Tracking Status</span><strong>{formatValue(selectedOrder.tracking_status)}</strong></div>
                     {selectedOrder.promo_code && <div className="adm-order-info"><span>Promo Code</span><strong>{selectedOrder.promo_code}</strong></div>}
                   </section>
+
+                  <section className="an-section adm-order-update-section">
+                    <h4>Update Order</h4>
+                    <div className="adm-order-form-grid">
+                      <div className="fg">
+                        <label>Status</label>
+                        <select disabled={orderLocked || saving} value={formStatus} onChange={(event) => setFormStatus(event.target.value)}>
+                          {["pending", "paid", "processing", "shipped", "delivered", "completed", "cancelled", "refunded"].map((status) => (
+                            <option key={status} value={status}>{formatValue(status)}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="fg">
+                        <label>Tracking status</label>
+                        <select disabled={orderLocked || saving} value={formTracking} onChange={(event) => setFormTracking(event.target.value)}>
+                          {["processing", "packed", "shipped", "out_for_delivery", "delivered"].map((status) => (
+                            <option key={status} value={status}>{formatValue(status)}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="adm-order-form-grid">
+                      <div className="fg">
+                        <label>Expected delivery</label>
+                        <input type="date" disabled={orderLocked || saving} value={formDelivery} onChange={(event) => setFormDelivery(event.target.value)} />
+                      </div>
+                      <div className="fg">
+                        <label>Note</label>
+                        <textarea disabled={orderLocked || saving} value={formNote} maxLength={2000} onChange={(event) => setFormNote(event.target.value)} />
+                      </div>
+                    </div>
+                    {!orderLocked && (
+                      <button type="button" className="adm-btn adm-btn-p" disabled={saving} onClick={() => void saveOrderUpdate()}>
+                        {saving ? "Saving…" : "Save update"}
+                      </button>
+                    )}
+                    {orderLocked && <p className="adm-muted adm-small">Updates are disabled for cancelled or refunded orders.</p>}
+                  </section>
+
+                  <section className="an-section adm-order-history-section">
+                    <h4>History</h4>
+                    {selectedOrder.history?.length ? (
+                      <ol className="adm-order-history">
+                        {selectedOrder.history.map((entry, index) => (
+                          <li key={entry.id || `${entry.created_at}-${index}`}>
+                            <strong>{formatValue(entry.status)}</strong>
+                            <time>{formatDate(entry.created_at)}</time>
+                            {entry.note && <p>{entry.note}</p>}
+                          </li>
+                        ))}
+                      </ol>
+                    ) : <p className="adm-muted">No status history recorded.</p>}
+                  </section>
                 </div>
 
                 <section className="an-section">
                   <h4>Shipping Address</h4>
-                  {selectedAddress.length ? selectedAddress.map((line) => <div className="adm-order-address" key={line}>{line}</div>) : <div className="adm-muted adm-small">No shipping address was saved for this order.</div>}
+                  {selectedAddress.length ? selectedAddress.map((line, index) => <div className="adm-order-address" key={`${index}-${line}`}>{line}</div>) : <div className="adm-muted adm-small">No shipping address was saved for this order.</div>}
                 </section>
 
                 <section className="an-section">
@@ -1094,38 +1281,66 @@ type AdminUser = {
   role: string;
   email_verified: boolean | number;
   created_at: string;
+  is_disabled: boolean | number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  contact_number: string | null;
+  order_count: number;
 };
 
 function UsersView({
   showToast,
+  currentUserId,
 }: {
   showToast: (message: string, type?: string) => void;
+  currentUserId: string;
 }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [error, setError] = useState("");
+  const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [nameForm, setNameForm] = useState({ first_name: "", last_name: "", contact_number: "" });
+  const [notifying, setNotifying] = useState<AdminUser | null>(null);
+  const [notificationForm, setNotificationForm] = useState({ title: "", message: "" });
+  const [saving, setSaving] = useState(false);
+
+  const loadUsers = useCallback(async () => {
+    try {
+      setLoadingUsers(true);
+      setError("");
+      const data = await apiFetch<{ success: boolean; users: AdminUser[] }>("/admin/users.php");
+      setUsers(data.users ?? []);
+    } catch (loadError) {
+      const message = loadError instanceof Error ? loadError.message : "Failed to load users.";
+      setError(message);
+      showToast(message, "error");
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, [showToast]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      apiFetch<{ success: boolean; users: AdminUser[] }>("/admin/users.php")
-        .then((data) => {
-          setUsers(data.users ?? []);
-        })
-        .catch((loadError) => {
-          const message =
-            loadError instanceof Error
-              ? loadError.message
-              : "Failed to load users.";
-          setError(message);
-          showToast(message, "error");
-        })
-        .finally(() => {
-          setLoadingUsers(false);
-        });
-    }, 0);
-
+    const timer = window.setTimeout(() => void loadUsers(), 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [loadUsers]);
+
+  async function updateUser(payload: Record<string, unknown>, successMessage: string) {
+    try {
+      setSaving(true);
+      await apiFetch("/admin/users.php", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      showToast(successMessage, "success");
+      await loadUsers();
+      setEditing(null);
+    } catch (updateError) {
+      showToast(updateError instanceof Error ? updateError.message : "Unable to update user.", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function formatDate(value: string) {
     return new Date(value.replace(" ", "T")).toLocaleDateString("en-PH", {
@@ -1151,29 +1366,176 @@ function UsersView({
               <th>Email</th>
               <th>Role</th>
               <th>Email Verification</th>
-              <th>Created</th>
+              <th>Disabled</th>
+              <th>Orders</th>
+              <th>Joined</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loadingUsers ? (
-              <tr><td colSpan={4}><div className="adm-empty">Loading users...</div></td></tr>
+              <tr><td colSpan={7}><div className="adm-empty">Loading users...</div></td></tr>
             ) : error ? (
-              <tr><td colSpan={4}><div className="adm-empty">{error}</div></td></tr>
+              <tr><td colSpan={7}><div className="adm-empty">{error}</div></td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={4}><div className="adm-empty">No users found.</div></td></tr>
+              <tr><td colSpan={7}><div className="adm-empty">No users found.</div></td></tr>
             ) : (
               users.map((account) => (
                 <tr key={account.id}>
                   <td>{account.email}</td>
                   <td><StatusBadge status={account.role} /></td>
                   <td><StatusBadge status={account.email_verified ? "Verified" : "Not Verified"} /></td>
+                  <td><StatusBadge status={account.is_disabled ? "Disabled" : "Enabled"} /></td>
+                  <td>{account.order_count}</td>
                   <td className="adm-muted adm-small">{formatDate(account.created_at)}</td>
+                  <td>
+                    <div className="adm-actions">
+                      <button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => {
+                        setEditing(account);
+                        setNameForm({ first_name: account.first_name || "", last_name: account.last_name || "", contact_number: account.contact_number || "" });
+                      }}>Edit</button>
+                      {account.id !== currentUserId && (
+                        <>
+                          <button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => {
+                            const role = account.role === "admin" ? "user" : "admin";
+                            if (window.confirm(`${role === "admin" ? "Make" : "Remove"} ${account.email} ${role === "admin" ? "an admin" : "admin access"}?`)) {
+                              void updateUser({ action: "set_role", user_id: account.id, role }, "User role updated.");
+                            }
+                          }}>{account.role === "admin" ? "Remove admin" : "Make admin"}</button>
+                          <button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => {
+                            const disabled = !account.is_disabled;
+                            if (window.confirm(`${disabled ? "Disable" : "Enable"} ${account.email}?`)) {
+                              void updateUser({ action: "set_disabled", user_id: account.id, disabled }, `User ${disabled ? "disabled" : "enabled"}.`);
+                            }
+                          }}>{account.is_disabled ? "Enable" : "Disable"}</button>
+                        </>
+                      )}
+                      <button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => {
+                        setNotifying(account);
+                        setNotificationForm({ title: "", message: "" });
+                      }}>Send notification</button>
+                    </div>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+      {editing && (
+        <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Edit user">
+          <div className="adm-modal-box">
+            <div className="adm-mh"><div className="adm-mt">Edit user</div><button type="button" className="adm-mx" onClick={() => setEditing(null)}>×</button></div>
+            <div className="fg"><label>First name</label><input value={nameForm.first_name} onChange={(event) => setNameForm({ ...nameForm, first_name: event.target.value })} /></div>
+            <div className="fg"><label>Last name</label><input value={nameForm.last_name} onChange={(event) => setNameForm({ ...nameForm, last_name: event.target.value })} /></div>
+            <div className="fg"><label>Contact number</label><input value={nameForm.contact_number} onChange={(event) => setNameForm({ ...nameForm, contact_number: event.target.value })} /></div>
+            <div className="adm-mf">
+              <button type="button" className="adm-btn adm-btn-o" onClick={() => setEditing(null)}>Cancel</button>
+              <button type="button" className="adm-btn adm-btn-p" disabled={saving} onClick={() => void updateUser({ action: "update", user_id: editing.id, ...nameForm }, "User profile updated.")}>{saving ? "Saving…" : "Save"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {notifying && (
+        <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Send notification">
+          <div className="adm-modal-box">
+            <div className="adm-mh"><div className="adm-mt">Send notification</div><button type="button" className="adm-mx" onClick={() => setNotifying(null)}>×</button></div>
+            <p className="adm-muted adm-small">To: {notifying.email}</p>
+            <div className="fg"><label>Title</label><input value={notificationForm.title} onChange={(event) => setNotificationForm({ ...notificationForm, title: event.target.value })} /></div>
+            <div className="fg"><label>Message</label><textarea value={notificationForm.message} onChange={(event) => setNotificationForm({ ...notificationForm, message: event.target.value })} /></div>
+            <div className="adm-mf">
+              <button type="button" className="adm-btn adm-btn-o" onClick={() => setNotifying(null)}>Cancel</button>
+              <button type="button" className="adm-btn adm-btn-p" disabled={saving || !notificationForm.title.trim() || !notificationForm.message.trim()} onClick={async () => {
+                try {
+                  setSaving(true);
+                  await apiFetch("/admin/notify.php", { method: "POST", body: JSON.stringify({ ...notificationForm, user_id: notifying.id }) });
+                  showToast("Notification sent.", "success");
+                  setNotifying(null);
+                } catch (notifyError) {
+                  showToast(notifyError instanceof Error ? notifyError.message : "Unable to send notification.", "error");
+                } finally {
+                  setSaving(false);
+                }
+              }}>{saving ? "Sending…" : "Send"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+type ContactMessage = {
+  id: string;
+  user_id: string | null;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  is_handled: boolean | number;
+  created_at: string;
+};
+
+function MessagesView({ showToast }: { showToast: (message: string, type?: string) => void }) {
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
+  const [filter, setFilter] = useState("unread");
+  const [loading, setLoading] = useState(true);
+
+  const loadMessages = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await apiFetch<{ success: boolean; messages: ContactMessage[] }>("/admin/contact-messages.php");
+      setMessages(data.messages ?? []);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to load messages.", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadMessages(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadMessages]);
+
+  const filteredMessages = messages.filter((message) => {
+    const isHandled = Number(message.is_handled) === 1;
+    return filter === "all" || (filter === "handled" ? isHandled : !isHandled);
+  });
+
+  async function toggleHandled(message: ContactMessage) {
+    const handled = Number(message.is_handled) === 1;
+    try {
+      await apiFetch("/admin/contact-messages.php", {
+        method: "POST",
+        body: JSON.stringify({ id: message.id, is_handled: !handled }),
+      });
+      setMessages((current) => current.map((item) => item.id === message.id ? { ...item, is_handled: !handled } : item));
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to update message.", "error");
+    }
+  }
+
+  return (
+    <>
+      <div className="adm-ph">
+        <div><div className="adm-ph-title">Messages</div><div className="adm-ph-sub">Review customer contact messages.</div></div>
+        <select aria-label="Filter messages" value={filter} onChange={(event) => setFilter(event.target.value)}>
+          <option value="unread">Unread</option><option value="handled">Handled</option><option value="all">All messages</option>
+        </select>
+      </div>
+      {loading ? <div className="adm-empty">Loading messages...</div> : filteredMessages.length === 0 ? <div className="adm-empty">No messages found.</div> : (
+        <div className="adm-message-list">
+          {filteredMessages.map((message) => (
+            <article className="an-section" key={message.id}>
+              <div className="adm-order-info"><strong>{message.subject}</strong><span>{message.name} · {message.email}</span></div>
+              <div className="adm-order-info"><span>{new Date(message.created_at.replace(" ", "T")).toLocaleString("en-PH")}</span><StatusBadge status={Number(message.is_handled) === 1 ? "Handled" : "Unread"} /></div>
+              <details><summary>View message</summary><p>{message.message}</p></details>
+              <button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => void toggleHandled(message)}>{message.is_handled ? "Mark unread" : "Mark handled"}</button>
+            </article>
+          ))}
+        </div>
+      )}
     </>
   );
 }
@@ -1213,6 +1575,10 @@ function RefundsView({
   const [selectedOrder, setSelectedOrder] = useState<RefundOrder | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
   const [orderError, setOrderError] = useState("");
+  const [refundConfirmation, setRefundConfirmation] = useState<{
+    refund: RefundRequest;
+    status: "approved" | "rejected";
+  } | null>(null);
 
   async function loadRefunds() {
     try {
@@ -1284,10 +1650,6 @@ function RefundsView({
   }
 
   async function updateRefund(refund: RefundRequest, status: "approved" | "rejected") {
-    if (!window.confirm(`${status === "approved" ? "Approve" : "Reject"} refund request ${refund.id}?`)) {
-      return;
-    }
-
     try {
       setUpdatingId(refund.id);
       await apiFetch("/admin/refund-status.php", {
@@ -1295,6 +1657,7 @@ function RefundsView({
         body: JSON.stringify({ id: refund.id, status }),
       });
       showToast(`Refund request ${status} successfully.`, "success");
+      setRefundConfirmation(null);
       await loadRefunds();
     } catch (updateError) {
       showToast(
@@ -1374,8 +1737,8 @@ function RefundsView({
                       <button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => void viewOrder(refund.order_id)}>Order</button>
                       {refund.status === "pending" && (
                         <>
-                          <button type="button" className="adm-btn adm-btn-p adm-btn-s" disabled={updatingId === refund.id} onClick={() => void updateRefund(refund, "approved")}>Approve</button>
-                          <button type="button" className="adm-btn adm-btn-d adm-btn-s" disabled={updatingId === refund.id} onClick={() => void updateRefund(refund, "rejected")}>Reject</button>
+                          <button type="button" className="adm-btn adm-btn-p adm-btn-s" disabled={updatingId === refund.id} onClick={() => setRefundConfirmation({ refund, status: "approved" })}>Approve</button>
+                          <button type="button" className="adm-btn adm-btn-d adm-btn-s" disabled={updatingId === refund.id} onClick={() => setRefundConfirmation({ refund, status: "rejected" })}>Reject</button>
                         </>
                       )}
                     </div>
@@ -1386,6 +1749,73 @@ function RefundsView({
           </tbody>
         </table>
       </div>
+
+      {refundConfirmation && (
+        <div className="adm-modal adm-refund-confirm-backdrop" role="presentation">
+          <section
+            className={`adm-modal-box adm-refund-confirm ${refundConfirmation.status}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="refund-confirm-title"
+            aria-describedby="refund-confirm-description"
+          >
+            <div className="adm-refund-confirm-mark" aria-hidden="true">
+              {refundConfirmation.status === "approved" ? "✓" : "!"}
+            </div>
+            <div className="adm-refund-confirm-eyebrow">Refund review</div>
+            <h2 id="refund-confirm-title">
+              {refundConfirmation.status === "approved"
+                ? "Approve this refund?"
+                : "Reject this refund?"}
+            </h2>
+            <p id="refund-confirm-description" className="adm-refund-confirm-copy">
+              {refundConfirmation.status === "approved"
+                ? "The request will be marked approved and the customer will see the updated status."
+                : "The request will be marked rejected and the customer will see the updated status."}
+            </p>
+            <dl className="adm-refund-confirm-details">
+              <div>
+                <dt>Request</dt>
+                <dd>#{refundConfirmation.refund.id.substring(0, 8).toUpperCase()}</dd>
+              </div>
+              <div>
+                <dt>Order</dt>
+                <dd>#{refundConfirmation.refund.order_id.substring(0, 8).toUpperCase()}</dd>
+              </div>
+              <div>
+                <dt>Customer</dt>
+                <dd>{refundConfirmation.refund.customer_email || refundConfirmation.refund.user_id}</dd>
+              </div>
+              <div className="adm-refund-confirm-reason">
+                <dt>Reason</dt>
+                <dd>{refundConfirmation.refund.reason || "No reason provided."}</dd>
+              </div>
+            </dl>
+            <div className="adm-refund-confirm-actions">
+              <button
+                type="button"
+                className="adm-btn adm-btn-o"
+                disabled={updatingId === refundConfirmation.refund.id}
+                onClick={() => setRefundConfirmation(null)}
+              >
+                Keep pending
+              </button>
+              <button
+                type="button"
+                className={`adm-btn ${refundConfirmation.status === "approved" ? "adm-btn-p" : "adm-btn-d"}`}
+                disabled={updatingId === refundConfirmation.refund.id}
+                onClick={() => void updateRefund(refundConfirmation.refund, refundConfirmation.status)}
+              >
+                {updatingId === refundConfirmation.refund.id
+                  ? "Saving..."
+                  : refundConfirmation.status === "approved"
+                    ? "Approve refund"
+                    : "Reject refund"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {(orderLoading || selectedOrder || orderError) && (
         <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Related order">
@@ -1411,7 +1841,7 @@ function RefundsView({
                   </section>
                   <section className="an-section">
                     <h4>Shipping Address</h4>
-                    {selectedAddress.length ? selectedAddress.map((line) => <div className="adm-order-address" key={line}>{line}</div>) : <div className="adm-muted adm-small">No shipping address was saved.</div>}
+                    {selectedAddress.length ? selectedAddress.map((line, index) => <div className="adm-order-address" key={`${index}-${line}`}>{line}</div>) : <div className="adm-muted adm-small">No shipping address was saved.</div>}
                   </section>
                 </div>
                 <section className="an-section">
@@ -1734,8 +2164,10 @@ export default function AdminPage() {
             )}
 
             {tab === "users" && (
-              <UsersView showToast={showToast} />
+              <UsersView showToast={showToast} currentUserId={user.id} />
             )}
+
+            {tab === "messages" && <MessagesView showToast={showToast} />}
 
             {tab === "refunds" && (
               <RefundsView showToast={showToast} />
@@ -2198,11 +2630,9 @@ function AnalyticsView({
               <div className="top-rank">#{index + 1}</div>
 
               <img
-                src={product.img_url || "/product.png"}
+                src={getProductImageUrl(product.img_url)}
                 alt={product.name}
-                onError={(event) => {
-                  event.currentTarget.src = "/product.png";
-                }}
+                onError={handleProductImageError}
               />
 
               <div style={{ flex: 1 }}>
@@ -2249,6 +2679,15 @@ function ProductsView({
   const [sku, setSku] = useState("");
   const [description, setDescription] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [initialVariants, setInitialVariants] = useState<ProductVariant[]>([]);
+  const [variantDrafts, setVariantDrafts] = useState<ProductVariant[]>([]);
+  const [variantsLoading, setVariantsLoading] = useState(false);
+  const [variantLoadError, setVariantLoadError] = useState("");
+  const variantRequestIdRef = useRef(0);
+  const [modelUrl, setModelUrl] = useState("");
+  const [modelFileName, setModelFileName] = useState("");
+  const [uploadingModel, setUploadingModel] = useState(false);
+  const modelFileInputRef = useRef<HTMLInputElement>(null);
 
   async function refreshProducts() {
     const data = await apiFetch<{
@@ -2318,6 +2757,7 @@ function ProductsView({
   }
 
   function openAdd() {
+    variantRequestIdRef.current += 1;
     setEditing(null);
     setName("");
     setSlug("");
@@ -2327,10 +2767,21 @@ function ProductsView({
     setSku("");
     setDescription("");
     setImageFile(null);
+    setInitialVariants([]);
+    setVariantDrafts([]);
+    setVariantsLoading(false);
+    setVariantLoadError("");
+    setModelUrl("");
+    setModelFileName("");
+    if (modelFileInputRef.current) {
+      modelFileInputRef.current.value = "";
+    }
     setModalOpen(true);
   }
 
-  function openEdit(product: Product) {
+  async function openEdit(product: Product) {
+    const requestId = variantRequestIdRef.current + 1;
+    variantRequestIdRef.current = requestId;
     setEditing(product);
     setName(product.name);
     setSlug(product.slug);
@@ -2340,7 +2791,86 @@ function ProductsView({
     setSku(product.sku || "");
     setDescription(product.description || "");
     setImageFile(null);
+    setInitialVariants([]);
+    setVariantDrafts([]);
+    setVariantsLoading(true);
+    setVariantLoadError("");
+    setModelUrl(product.model_url || "");
+    setModelFileName(
+      product.model_url?.split(/[?#]/, 1)[0].split("/").pop() || "",
+    );
+    if (modelFileInputRef.current) {
+      modelFileInputRef.current.value = "";
+    }
     setModalOpen(true);
+    try {
+      const data = await apiFetch<{ success: boolean; variants: ProductVariant[] }>(
+        `/variants/list.php?product_id=${encodeURIComponent(product.id)}`,
+      );
+      if (requestId !== variantRequestIdRef.current) return;
+      setInitialVariants(data.variants ?? []);
+      setVariantDrafts(data.variants ?? []);
+    } catch (error) {
+      if (requestId !== variantRequestIdRef.current) return;
+      setVariantLoadError(error instanceof Error ? error.message : "Unable to load variants.");
+      showToast(error instanceof Error ? error.message : "Unable to load variants.", "error");
+    } finally {
+      if (requestId === variantRequestIdRef.current) {
+        setVariantsLoading(false);
+      }
+    }
+  }
+
+  async function uploadModel(file: File) {
+    if (!/\.glb$/i.test(file.name)) {
+      showToast("Choose a .glb model file.", "error");
+      if (modelFileInputRef.current) {
+        modelFileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      showToast("The 3D model must be 25 MB or smaller.", "error");
+      if (modelFileInputRef.current) {
+        modelFileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    setUploadingModel(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append("kind", "model");
+
+      const result = await apiFetch<{ success: boolean; url?: string }>(
+        "/products/upload.php",
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!result.url?.trim()) {
+        throw new Error("The server did not return a model URL.");
+      }
+
+      setModelUrl(result.url);
+      setModelFileName(file.name);
+      showToast("3D model uploaded.", "success");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "3D model upload failed.",
+        "error",
+      );
+      if (modelFileInputRef.current) {
+        modelFileInputRef.current.value = "";
+      }
+    } finally {
+      setUploadingModel(false);
+    }
   }
 
   async function uploadImage(file: File) {
@@ -2379,7 +2909,17 @@ function ProductsView({
       return;
     }
 
+    if (uploadingModel) {
+      showToast("Wait for the 3D model upload to finish.", "error");
+      return;
+    }
+    if (variantsLoading || variantLoadError) {
+      showToast(variantLoadError || "Wait for variants to finish loading.", "error");
+      return;
+    }
+
     setSaving(true);
+    let savedProductId = id || "";
 
     try {
       let imgUrl = editing?.img_url || null;
@@ -2397,6 +2937,7 @@ function ProductsView({
         sku: sku.trim() || null,
         description: description.trim() || null,
         img_url: imgUrl,
+        model_url: modelUrl.trim() || null,
       };
 
       if (id) {
@@ -2408,16 +2949,19 @@ function ProductsView({
           }),
         });
 
-        showToast("Product updated!", "success");
       } else {
-        await apiFetch("/products/create.php", {
+        const result = await apiFetch<{ success: boolean; product: Product }>("/products/create.php", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-
-        showToast("Product added!", "success");
+        savedProductId = result.product.id;
       }
 
+      if (!savedProductId) {
+        throw new Error("The server did not return the saved product ID.");
+      }
+      await saveVariants(savedProductId);
+      showToast(id ? "Product updated!" : "Product added!", "success");
       setModalOpen(false);
       await refreshProducts();
     } catch (error) {
@@ -2427,6 +2971,60 @@ function ProductsView({
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveVariants(productId: string) {
+    const baseline = [...initialVariants];
+    const drafts = [...variantDrafts];
+    const draftIds = new Set(drafts.flatMap((variant) => variant.id ? [variant.id] : []));
+
+    for (const variant of [...baseline]) {
+      if (variant.id && !draftIds.has(variant.id)) {
+        await apiFetch("/variants/delete.php", {
+          method: "POST",
+          body: JSON.stringify({ id: variant.id }),
+        });
+        const index = baseline.findIndex((item) => item.id === variant.id);
+        if (index !== -1) baseline.splice(index, 1);
+        setInitialVariants([...baseline]);
+      }
+    }
+
+    for (let index = 0; index < drafts.length; index += 1) {
+      const draft = drafts[index];
+      const payload = {
+        product_id: productId,
+        variant_name: draft.variant_name.trim(),
+        option_value: draft.option_value.trim(),
+        price_adjustment: Math.round(Number(draft.price_adjustment)),
+        stock: Math.trunc(Number(draft.stock)),
+      };
+      if (!payload.variant_name || !payload.option_value || !Number.isFinite(payload.price_adjustment) || !Number.isInteger(payload.stock) || payload.stock < 0) {
+        throw new Error("Each variant needs a name, option value, valid price adjustment, and non-negative stock.");
+      }
+
+      if (draft.id) {
+        await apiFetch("/variants/update.php", {
+          method: "PUT",
+          body: JSON.stringify({ id: draft.id, ...payload }),
+        });
+        const baselineIndex = baseline.findIndex((item) => item.id === draft.id);
+        const savedVariant = { ...payload, id: draft.id };
+        if (baselineIndex === -1) baseline.push(savedVariant);
+        else baseline[baselineIndex] = savedVariant;
+        setInitialVariants([...baseline]);
+      } else {
+        const result = await apiFetch<{ success: boolean; variant: ProductVariant }>("/variants/create.php", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        const savedVariant = result.variant;
+        baseline.push(savedVariant);
+        drafts[index] = savedVariant;
+        setInitialVariants([...baseline]);
+        setVariantDrafts([...drafts]);
+      }
     }
   }
 
@@ -2522,11 +3120,9 @@ function ProductsView({
                 <tr key={product.id}>
                   <td>
                     <img
-                      src={product.img_url || "/product.png"}
+                      src={getProductImageUrl(product.img_url)}
                       alt={product.name}
-                      onError={(event) => {
-                        event.currentTarget.src = "/product.png";
-                      }}
+                      onError={handleProductImageError}
                     />
                   </td>
 
@@ -2558,7 +3154,7 @@ function ProductsView({
                     <div className="adm-actions">
                       <button
                         className="adm-btn adm-btn-o adm-btn-s"
-                        onClick={() => openEdit(product)}
+                        onClick={() => void openEdit(product)}
                       >
                         Edit
                       </button>
@@ -2709,11 +3305,119 @@ function ProductsView({
               />
             </div>
 
+            <div className="fg">
+              <label>3D model (.glb)</label>
+              <input
+                ref={modelFileInputRef}
+                type="file"
+                accept=".glb,model/gltf-binary"
+                disabled={uploadingModel}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+
+                  if (file) {
+                    void uploadModel(file);
+                  }
+                }}
+              />
+              <small className="adm-small adm-muted">
+                Maximum file size: 25 MB. {uploadingModel ? "Uploading…" : ""}
+              </small>
+              <input
+                type="url"
+                value={modelUrl}
+                placeholder="Paste a .glb URL"
+                aria-label="3D model URL"
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setModelUrl(value);
+                  setModelFileName(
+                    value.split(/[?#]/, 1)[0].split("/").pop() || "",
+                  );
+                }}
+              />
+              {modelFileName && (
+                <div className="adm-small adm-muted">
+                  Model file: {modelFileName}
+                </div>
+              )}
+              {modelUrl && (
+                <>
+                  <button
+                    type="button"
+                    className="adm-btn adm-btn-d adm-btn-s"
+                    disabled={uploadingModel}
+                    onClick={() => {
+                      setModelUrl("");
+                      setModelFileName("");
+                      if (modelFileInputRef.current) {
+                        modelFileInputRef.current.value = "";
+                      }
+                    }}
+                  >
+                    Remove model
+                  </button>
+                  <div className="adm-model-preview">
+                    <ProductModelViewer
+                      key={modelUrl}
+                      modelUrl={modelUrl}
+                      productName={name || "Product preview"}
+                      poster={getProductImageUrl(editing?.img_url)}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <section className="an-section">
+              <div className="adm-mh">
+                <h4>Variants</h4>
+                <button
+                  type="button"
+                  className="adm-btn adm-btn-o adm-btn-s"
+                  onClick={() => setVariantDrafts((current) => [
+                    ...current,
+                    { variant_name: "", option_value: "", price_adjustment: 0, stock: 0 },
+                  ])}
+                >
+                  Add variant
+                </button>
+              </div>
+              <p className="adm-small adm-muted">
+                Variant price adjustments are in PHP and added to the base product price.
+              </p>
+              {!variantDrafts.length && <p className="adm-muted adm-small">No variants added.</p>}
+              {variantDrafts.map((variant, index) => (
+                <div className="fr" key={variant.id || `new-${index}`}>
+                  <div className="fg">
+                    <label>Variant name</label>
+                    <input value={variant.variant_name} placeholder="Color" onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, variant_name: event.target.value } : row))} />
+                  </div>
+                  <div className="fg">
+                    <label>Option value</label>
+                    <input value={variant.option_value} placeholder="Red" onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, option_value: event.target.value } : row))} />
+                  </div>
+                  <div className="fg">
+                    <label>Price adjustment (PHP)</label>
+                    <input type="number" step="0.01" value={(variant.price_adjustment / 100).toFixed(2)} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, price_adjustment: Math.round(Number(event.target.value || 0) * 100) } : row))} />
+                  </div>
+                  <div className="fg">
+                    <label>Stock</label>
+                    <input type="number" min="0" step="1" value={variant.stock} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, stock: Number(event.target.value) } : row))} />
+                  </div>
+                  <button type="button" className="adm-btn adm-btn-d adm-btn-s" aria-label={`Remove variant ${index + 1}`} onClick={() => setVariantDrafts((current) => current.filter((_, rowIndex) => rowIndex !== index))}>Remove</button>
+                </div>
+              ))}
+              <p className="adm-small adm-muted">The legacy variant schema does not support a per-variant SKU.</p>
+              {variantsLoading && <p className="adm-small adm-muted">Loading existing variants…</p>}
+              {variantLoadError && <p className="adm-small" role="alert">{variantLoadError}. Close and reopen the product to retry.</p>}
+            </section>
+
             <div className="adm-mf">
               <button
                 className="adm-btn adm-btn-o"
                 onClick={() => setModalOpen(false)}
-                disabled={saving}
+                disabled={saving || uploadingModel || variantsLoading || Boolean(variantLoadError)}
               >
                 Cancel
               </button>
@@ -2721,7 +3425,7 @@ function ProductsView({
               <button
                 className="adm-btn adm-btn-p"
                 onClick={saveProduct}
-                disabled={saving}
+                disabled={saving || uploadingModel || variantsLoading || Boolean(variantLoadError)}
               >
                 {saving ? "Saving…" : "Save Product"}
               </button>
@@ -3328,40 +4032,227 @@ const adminStyles = `
   overflow-y: auto;
 }
 
+.adm-refund-confirm-backdrop {
+  z-index: 2200;
+}
+
+.adm-refund-confirm {
+  position: relative;
+  max-width: 500px;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+}
+
+.adm-refund-confirm-mark {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 1.1rem;
+  place-items: center;
+  border: 1px solid #39764d;
+  border-radius: 50%;
+  background: rgba(57, 118, 77, 0.15);
+  color: #8ee0a5;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.adm-refund-confirm.rejected .adm-refund-confirm-mark {
+  border-color: #8a4141;
+  background: rgba(138, 65, 65, 0.15);
+  color: #ef9a9a;
+}
+
+.adm-refund-confirm-eyebrow {
+  margin-bottom: 0.45rem;
+  color: var(--adm-text2);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.adm-refund-confirm h2 {
+  margin: 0;
+  color: var(--adm-text);
+  font-size: 1.35rem;
+}
+
+.adm-refund-confirm-copy {
+  margin: 0.6rem 0 1.25rem;
+  color: var(--adm-text2);
+  line-height: 1.6;
+}
+
+.adm-refund-confirm-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.adm-refund-confirm-details > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.adm-refund-confirm-details dt {
+  color: var(--adm-text2);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.adm-refund-confirm-details dd {
+  overflow-wrap: anywhere;
+  color: var(--adm-text);
+  font-size: 0.82rem;
+}
+
+.adm-refund-confirm-reason {
+  grid-column: 1 / -1;
+}
+
+.adm-refund-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 1.4rem;
+}
+
+.adm-refund-confirm-actions .adm-btn {
+  min-height: 40px;
+  padding: 0.6rem 0.9rem;
+}
+
 .adm-order-modal {
-  max-width: 860px;
+  width: min(100%, 1040px);
+  max-width: 1040px;
+  padding: 1.5rem;
 }
 
 .adm-order-detail-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
   gap: 1rem;
 }
 
 .adm-order-detail-grid .an-section {
-  margin-bottom: 1rem;
+  min-width: 0;
+  margin: 0;
+  padding: 1.15rem;
+}
+
+.adm-order-detail-grid .adm-order-update-section {
+  grid-column: span 2;
+}
+
+.adm-order-detail-grid .adm-order-history-section {
+  grid-column: span 1;
+}
+
+.adm-order-modal > .an-section {
+  margin-top: 1rem;
+  padding: 1.15rem;
+}
+
+.adm-order-detail-grid .an-section h4,
+.adm-order-modal > .an-section h4 {
+  margin: 0 0 1rem;
+  line-height: 1.35;
 }
 
 .adm-order-info {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.35rem 0;
+  gap: 1rem;
+  padding: 0.45rem 0;
   font-size: 0.8rem;
 }
 
 .adm-order-info span {
+  flex: 0 0 36%;
   color: var(--adm-text2);
 }
 
 .adm-order-info strong {
+  flex: 1 1 0;
   text-align: right;
   overflow-wrap: anywhere;
+}
+
+.adm-order-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem 1rem;
+}
+
+.adm-order-form-grid .fg {
+  min-width: 0;
+  margin-bottom: 0.75rem;
+}
+
+.adm-order-form-grid .fg label {
+  min-height: 1.8em;
+  line-height: 1.4;
+}
+
+.adm-order-form-grid .fg select,
+.adm-order-form-grid .fg input,
+.adm-order-form-grid .fg textarea {
+  min-width: 0;
+}
+
+.adm-order-update-section > .adm-btn {
+  margin-top: 0.25rem;
 }
 
 .adm-order-address {
   font-size: 0.84rem;
   line-height: 1.6;
+}
+
+.adm-order-history {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.adm-order-history li {
+  padding: 0.25rem 0 0.75rem 0.25rem;
+  border-bottom: 1px solid var(--adm-border);
+}
+
+.adm-order-history li:last-child {
+  border-bottom: 0;
+}
+
+.adm-order-history time {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--adm-text2);
+  font-size: 0.75rem;
+}
+
+.adm-order-history p {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+}
+
+.adm-model-preview .product-model-viewer {
+  height: 280px;
+}
+
+.adm-model-preview .product-model-viewer-wrap > p {
+  font-size: 0.72rem;
 }
 
 .adm-mh {
@@ -3769,6 +4660,19 @@ const adminStyles = `
     grid-template-columns: 1fr;
   }
 
+  .adm-order-detail-grid .adm-order-update-section,
+  .adm-order-detail-grid .adm-order-history-section {
+    grid-column: auto;
+  }
+
+  .adm-order-modal {
+    padding: 1rem;
+  }
+
+  .adm-order-form-grid {
+    grid-template-columns: 1fr;
+  }
+
   .an-two {
     grid-template-columns: 1fr;
   }
@@ -3794,5 +4698,3 @@ const adminStyles = `
   }
 }
 `;
-
-

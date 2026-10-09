@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../lib/api";
+import {
+  getProductImageUrl,
+  handleProductImageError,
+} from "../../lib/product-assets";
 
 type Product = {
   id: string;
@@ -135,6 +139,7 @@ export default function ProductsPage() {
             <input
               id="product-search"
               type="search"
+              aria-label="Search products"
               placeholder="Search products..."
               value={search}
               onChange={(event) => {
@@ -146,6 +151,7 @@ export default function ProductsPage() {
           <div className="category-box">
             <select
               id="category-filter"
+              aria-label="Filter products by category"
               value={category}
               onChange={(event) => {
                 setCategory(event.target.value);
@@ -193,18 +199,10 @@ export default function ProductsPage() {
               >
                 <div className="product-image-wrapper">
                   <img
-                    src={product.img_url || "/product.png"}
+                    src={getProductImageUrl(product.img_url)}
                     alt={product.name}
                     className="product-image"
-                    onError={(event) => {
-                      const image = event.currentTarget;
-
-                      if (image.src.endsWith("/product.png")) {
-                        return;
-                      }
-
-                      image.src = "/product.png";
-                    }}
+                    onError={handleProductImageError}
                   />
 
                   {product.model_url && (

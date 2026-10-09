@@ -33,6 +33,7 @@ session_set_cookie_params([
 session_start();
 
 require_once __DIR__ . "/../config/database.php";
+require_once __DIR__ . "/../config/order-response.php";
 
 $pdo = getDatabaseConnection();
 
@@ -72,6 +73,7 @@ try {
             o.created_at,
             o.shipping_method,
             o.payment_method,
+            o.payment_status,
             o.tracking_status,
             o.expected_delivery,
             o.cancelled_at,
@@ -140,6 +142,7 @@ try {
             array_column($items, "qty")
         );
         $order["total_cents"] = (int) $order["total_cents"];
+        $order = addOrderRefundAndActions($pdo, $order);
     }
 
     unset($order);

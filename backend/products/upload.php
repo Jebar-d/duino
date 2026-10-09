@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../config.php';
 
 function respond(bool $success, string $message = '', array $extra = []): never
 {
@@ -90,7 +91,7 @@ if ($kind === 'model') {
     if (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0755, true) && !is_dir($uploadDirectory)) { http_response_code(500); respond(false, 'Unable to create model directory.'); }
     $fileName = bin2hex(random_bytes(16)) . '.glb';
     if (!move_uploaded_file($file['tmp_name'], $uploadDirectory . DIRECTORY_SEPARATOR . $fileName)) { http_response_code(500); respond(false, 'Unable to save uploaded model.'); }
-    respond(true, 'Model uploaded successfully.', ['url' => 'http://localhost/arduino-store/backend/uploads/models/' . $fileName]);
+    respond(true, 'Model uploaded successfully.', ['url' => rtrim(UPLOAD_BASE_URL, '/') . '/models/' . $fileName]);
 }
 
 $finfo = new finfo(FILEINFO_MIME_TYPE);
@@ -126,7 +127,7 @@ if (!move_uploaded_file($file['tmp_name'], $destination)) {
     respond(false, 'Unable to save uploaded image.');
 }
 
-$url = 'http://localhost/arduino-store/backend/uploads/products/' . $fileName;
+$url = rtrim(UPLOAD_BASE_URL, '/') . '/products/' . $fileName;
 
 respond(
     true,

@@ -57,7 +57,6 @@ try {
     for ($offset = 5; $offset >= 0; $offset--) {
         $month = date('Y-m', strtotime(date('Y-m-01') . ' -' . $offset . ' months'));
         $monthly[] = [
-            'month' => $month,
             'label' => date('M Y', strtotime($month . '-01')),
             'revenue_cents' => $monthlyByMonth[$month]['revenue_cents'] ?? 0,
             'order_count' => $monthlyByMonth[$month]['order_count'] ?? 0,
@@ -66,17 +65,17 @@ try {
 
     $payments = $pdo->query('SELECT payment_method AS method, COUNT(*) AS count FROM orders GROUP BY payment_method ORDER BY payment_method')->fetchAll(PDO::FETCH_ASSOC);
     $statuses = $pdo->query('SELECT status, COUNT(*) AS count FROM orders GROUP BY status ORDER BY status')->fetchAll(PDO::FETCH_ASSOC);
-    $topProducts = $pdo->query("SELECT oi.product_name,
-        oi.product_name AS name,
-        MAX(oi.product_img) AS img_url,
+    $topProducts = $pdo->query("SELECT
+        COALESCE(p.name, oi.product_name) AS name,
+        COALESCE(p.img_url, oi.product_img) AS img_url,
         SUM(oi.qty) AS qty,
-        SUM(oi.qty) AS units_sold,
         SUM(oi.qty * oi.price_cents) AS revenue_cents
         FROM order_items oi
         INNER JOIN orders o ON o.id = oi.order_id
+        LEFT JOIN products p ON p.id = oi.product_id
         WHERE o.status NOT IN ('cancelled','refunded')
-        GROUP BY oi.product_name
-        ORDER BY units_sold DESC
+        GROUP BY COALESCE(p.id, oi.product_name), name, img_url
+        ORDER BY qty DESC
         LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
     $lowStock = $pdo->query('SELECT id, name, stock FROM products WHERE stock <= 10 ORDER BY stock ASC')->fetchAll(PDO::FETCH_ASSOC);
 
@@ -92,7 +91,6 @@ try {
     }
     unset($row);
     foreach ($topProducts as &$row) {
-        $row['units_sold'] = (int) $row['units_sold'];
         $row['qty'] = (int) $row['qty'];
         $row['revenue_cents'] = (int) $row['revenue_cents'];
     }

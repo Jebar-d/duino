@@ -411,3 +411,104 @@
     height: clamp(380px, 60vh, 560px);
   }
 }
+
+.account-order-details-actions button {
+  padding: 10px 14px;
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.account-order-details-actions button:hover {
+  background: #1b1b1b;
+}
+
+.account-order-details-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.account-item-remove-dialog label {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  color: #ccc;
+  font-size: 0.84rem;
+}
+
+.account-item-remove-dialog textarea {
+  min-height: 110px;
+  padding: 10px;
+  border: 1px solid #444;
+  background: #171717;
+  color: #fff;
+  font: inherit;
+  resize: vertical;
+}
+
+.account-order-tracking-timeline ol {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-order-tracking-timeline li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 18px;
+  padding: 12px 0;
+  border-bottom: 1px solid #292929;
+}
+
+.account-order-tracking-timeline li:last-child {
+  border-bottom: 0;
+}
+
+.account-order-tracking-timeline time {
+  color: #999;
+  font-size: 0.82rem;
+}
+
+.account-order-rate-items {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.account-order-rate-items a {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.account-order-refund-status {
+  display: inline-block;
+  width: fit-content;
+  padding: 3px 8px;
+  border: 1px solid #555;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+}
+
+.account-order-refund-status.pending {
+  border-color: #9a762e;
+  color: #e3c16e;
+}
+
+.account-order-refund-status.approved {
+  border-color: #39764d;
+  color: #8ee0a5;
+}
+
+.account-order-refund-status.rejected {
+  border-color: #8a4141;
+  color: #ef9a9a;
+}
