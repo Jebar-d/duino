@@ -11,7 +11,7 @@ header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Content-Type: application/json; charset=utf-8");
 
 if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
-    http_response_code(200);
+    http_response_code(204);
     exit;
 }
 
@@ -33,6 +33,7 @@ session_set_cookie_params([
 session_start();
 
 require_once __DIR__ . "/../config/database.php";
+require_once __DIR__ . "/../config/order-response.php";
 
 $pdo = getDatabaseConnection();
 
@@ -122,59 +123,7 @@ try {
         exit;
     }
 
-    $itemQuery = $pdo->prepare("
-        SELECT
-            id,
-            order_id,
-            product_id,
-            variant_id,
-            qty,
-            price_cents,
-            product_name,
-            product_img
-        FROM order_items
-        WHERE order_id = :order_id
-        ORDER BY id ASC
-    ");
-
-    $itemQuery->execute([
-        "order_id" => $orderId
-    ]);
-
-    $items = $itemQuery->fetchAll(PDO::FETCH_ASSOC);
-
-    foreach ($items as &$item) {
-        $item["qty"] = (int) $item["qty"];
-        $item["price_cents"] = (int) $item["price_cents"];
-        $item["subtotal_cents"] = $item["qty"] * $item["price_cents"];
-    }
-
-    unset($item);
-
-    $shippingAddress = null;
-
-    if (!empty($order["shipping_address"])) {
-        $decodedAddress = json_decode(
-            $order["shipping_address"],
-            true
-        );
-
-        if (is_array($decodedAddress)) {
-            $shippingAddress = $decodedAddress;
-        }
-    }
-
-    $order["total_cents"] = (int) $order["total_cents"];
-    $order["email_confirmed"] = (bool) $order["email_confirmed"];
-    $order["items"] = $items;
-    $order["item_count"] = array_sum(
-        array_column($items, "qty")
-    );
-    $order["shipping_address"] = $shippingAddress;
-
-    $historyQuery = $pdo->prepare("SELECT * FROM order_status_history WHERE order_id = :order_id ORDER BY created_at ASC");
-    $historyQuery->execute(["order_id" => $orderId]);
-    $order["history"] = $historyQuery->fetchAll(PDO::FETCH_ASSOC);
+    $order = buildOrderResponse($pdo, $order);
 
     echo json_encode([
         "success" => true,

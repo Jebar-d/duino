@@ -52,6 +52,21 @@ $lastName = trim($input['last_name'] ?? '');
 $suffix = trim($input['suffix'] ?? '');
 $contactNumber = trim($input['contact_number'] ?? '');
 $address = trim($input['address'] ?? '');
+$structuredAddressFields = ['address_line', 'city', 'province', 'postal_code'];
+$hasStructuredAddress = false;
+$structuredAddress = [];
+foreach ($structuredAddressFields as $field) {
+    if (array_key_exists($field, $input)) {
+        $hasStructuredAddress = true;
+    }
+    $value = $input[$field] ?? '';
+    if (!is_string($value)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Address fields must be strings.']);
+        exit;
+    }
+    $structuredAddress[$field] = trim(strip_tags($value));
+}
 $termsAccepted = !empty($input['terms_accepted']);
 $rulesAccepted = !empty($input['rules_accepted']);
 
@@ -114,6 +129,40 @@ if (!$termsAccepted || !$rulesAccepted) {
     ]);
 
     exit;
+}
+
+$extraAddresses = [];
+if ($hasStructuredAddress) {
+    if ($structuredAddress['address_line'] === '' || !preg_match('/^\d{4}$/', $structuredAddress['postal_code'])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'address_line is required and postal_code must contain 4 digits.']);
+        exit;
+    }
+    if (!preg_match('/^\d{11,13}$/', $contactNumber)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'contact_number must contain 11 to 13 digits when saving an address.']);
+        exit;
+    }
+    $addressEntry = [
+        'first_name' => trim(strip_tags($firstName)),
+        'middle_name' => trim(strip_tags($middleName)),
+        'last_name' => trim(strip_tags($lastName)),
+        'suffix' => trim(strip_tags($suffix)),
+        'address_line' => $structuredAddress['address_line'],
+        'city' => $structuredAddress['city'],
+        'province' => $structuredAddress['province'],
+        'postal_code' => $structuredAddress['postal_code'],
+        'contact_number' => $contactNumber,
+    ];
+    if (!in_array($addressEntry, $extraAddresses, true)) {
+        array_unshift($extraAddresses, $addressEntry);
+    }
+    $address = implode(', ', array_values(array_filter([
+        $structuredAddress['address_line'],
+        $structuredAddress['city'],
+        $structuredAddress['province'],
+        $structuredAddress['postal_code'],
+    ], static fn(string $part): bool => $part !== '')));
 }
 
 try {
@@ -196,6 +245,7 @@ try {
             suffix,
             contact_number,
             address,
+            extra_addresses,
             terms_accepted,
             rules_accepted
         ) VALUES (
@@ -209,6 +259,7 @@ try {
             :suffix,
             :contact_number,
             :address,
+            :extra_addresses,
             :terms_accepted,
             :rules_accepted
         )'
@@ -225,6 +276,7 @@ try {
         ':suffix' => $suffix !== '' ? $suffix : null,
         ':contact_number' => $contactNumber !== '' ? $contactNumber : null,
         ':address' => $address !== '' ? $address : null,
+        ':extra_addresses' => json_encode($extraAddresses, JSON_UNESCAPED_UNICODE),
         ':terms_accepted' => $termsAccepted ? 1 : 0,
         ':rules_accepted' => $rulesAccepted ? 1 : 0
     ]);
