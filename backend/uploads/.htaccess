@@ -1,0 +1,18 @@
+# Lets the Next.js site (http://localhost:3000) load 3D models and images
+# from this folder. Needs Apache's mod_headers (enabled by default in XAMPP).
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "http://localhost:3000"
+    Header set Cross-Origin-Resource-Policy "cross-origin"
+    Header set Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+</IfModule>
+
+<IfModule mod_mime.c>
+    AddType model/gltf-binary .glb
+    AddType model/gltf+json .gltf
+</IfModule>
+
+# Never list the folder contents or run scripts from it
+Options -Indexes
+<FilesMatch "\.(php|phtml|phar)$">
+    Require all denied
+</FilesMatch>
