@@ -1,9 +1,18 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { Check, Circle, Eye, EyeOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../../lib/api";
+import { Button } from "../../components/ui/8bit/button";
+import { Card } from "../../components/ui/8bit/card";
+import { Input } from "../../components/ui/8bit/input";
+import { Textarea } from "../../components/ui/8bit/textarea";
+import { Label } from "../../components/ui/8bit/label";
+import { Checkbox } from "../../components/ui/8bit/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/8bit/select";
+import { Alert, AlertDescription } from "../../components/ui/8bit/alert";
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/8bit/dialog";
 
 type RegisterResponse = {
   success: boolean;
@@ -165,7 +174,7 @@ export default function SignupPage() {
   return (
     <>
       <main className="auth-container">
-        <div className="auth-card" style={{ maxWidth: "600px" }}>
+        <Card className="auth-card" style={{ maxWidth: "600px" }}>
           <h1>Create Account</h1>
 
           <p className="auth-subtitle">Join Arduino Store today</p>
@@ -182,9 +191,9 @@ export default function SignupPage() {
 
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="email">Email *</label>
+                <Label htmlFor="email">Email *</Label>
 
-                <input
+                <Input
                   id="email"
                   type="email"
                   placeholder="you@example.com"
@@ -195,10 +204,10 @@ export default function SignupPage() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="password">Password *</label>
+                <Label htmlFor="password">Password *</Label>
 
                 <div className="password-wrap">
-                  <input
+                  <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Min 8 characters"
@@ -207,14 +216,14 @@ export default function SignupPage() {
                     required
                   />
 
-                  <button
+                  <Button
                     type="button"
                     className="show-pass-btn"
                     onClick={() => setShowPassword((current) => !current)}
                     title="Show/hide password"
                   >
                     {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
-                  </button>
+                  </Button>
                 </div>
 
                 {password.length > 0 && (
@@ -263,9 +272,9 @@ export default function SignupPage() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="username">Username *</label>
+              <Label htmlFor="username">Username *</Label>
 
-              <input
+              <Input
                 id="username"
                 placeholder="johndoe123"
                 value={username}
@@ -285,9 +294,9 @@ export default function SignupPage() {
 
             <div className="form-row three-col">
               <div className="form-group">
-                <label htmlFor="first_name">First Name *</label>
+                <Label htmlFor="first_name">First Name *</Label>
 
-                <input
+                <Input
                   id="first_name"
                   placeholder="John"
                   value={firstName}
@@ -299,9 +308,9 @@ export default function SignupPage() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="middle_name">Middle Name</label>
+                <Label htmlFor="middle_name">Middle Name</Label>
 
-                <input
+                <Input
                   id="middle_name"
                   placeholder="M"
                   value={middleName}
@@ -312,9 +321,9 @@ export default function SignupPage() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="last_name">Last Name *</label>
+                <Label htmlFor="last_name">Last Name *</Label>
 
-                <input
+                <Input
                   id="last_name"
                   placeholder="Doe"
                   value={lastName}
@@ -328,26 +337,19 @@ export default function SignupPage() {
 
             <div className="form-row two-col">
               <div className="form-group">
-                <label htmlFor="suffix">Suffix (Optional)</label>
+                <Label htmlFor="suffix">Suffix (Optional)</Label>
 
-                <select
-                  id="suffix"
-                  value={suffix}
-                  onChange={(event) => setSuffix(event.target.value)}
-                >
-                  <option value="">None</option>
-                  <option value="Jr.">Jr.</option>
-                  <option value="Sr.">Sr.</option>
-                  <option value="II">II</option>
-                  <option value="III">III</option>
-                  <option value="IV">IV</option>
-                  <option value="PhD">PhD</option>
-                  <option value="MD">MD</option>
-                </select>
+                <Select value={suffix || "none"} onValueChange={(value) => setSuffix(value === "none" ? "" : value)}>
+                  <SelectTrigger id="suffix"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {["Jr.", "Sr.", "II", "III", "IV", "PhD", "MD"].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="form-group">
-                <label htmlFor="contact">
+                <Label htmlFor="contact">
                   Contact Number *
                   <small
                     style={{
@@ -358,9 +360,9 @@ export default function SignupPage() {
                     {" "}
                     (11 to 13 digits)
                   </small>
-                </label>
+                </Label>
 
-                <input
+                <Input
                   id="contact"
                   type="tel"
                   placeholder="09123456789"
@@ -384,9 +386,9 @@ export default function SignupPage() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="address">Street / house no. / barangay *</label>
+              <Label htmlFor="address">Street / house no. / barangay *</Label>
 
-              <textarea
+              <Textarea
                 id="address"
                 rows={3}
                 placeholder="Street, house number, barangay"
@@ -397,9 +399,9 @@ export default function SignupPage() {
             </div>
 
             <div className="form-row three-col">
-              <div className="form-group"><label htmlFor="city">City / municipality *</label><input id="city" value={city} onChange={(event) => setCity(event.target.value)} required /></div>
-              <div className="form-group"><label htmlFor="province">Province *</label><input id="province" value={province} onChange={(event) => setProvince(event.target.value)} required /></div>
-              <div className="form-group"><label htmlFor="postalCode">Postal code (4 digits) *</label><input id="postalCode" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/\D/g, "").slice(0, 4))} required /></div>
+              <div className="form-group"><Label htmlFor="city">City / municipality *</Label><Input id="city" value={city} onChange={(event) => setCity(event.target.value)} required /></div>
+              <div className="form-group"><Label htmlFor="province">Province *</Label><Input id="province" value={province} onChange={(event) => setProvince(event.target.value)} required /></div>
+              <div className="form-group"><Label htmlFor="postalCode">Postal code (4 digits) *</Label><Input id="postalCode" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/\D/g, "").slice(0, 4))} required /></div>
             </div>
 
             <h3
@@ -412,16 +414,15 @@ export default function SignupPage() {
             </h3>
 
             <div className="checkbox-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
+              <Label className="checkbox-label">
+                <Checkbox
                   checked={terms}
-                  onChange={(event) => setTerms(event.target.checked)}
+                  onCheckedChange={(checked) => setTerms(checked === true)}
                 />
 
                 <span>
                   I agree to the{" "}
-                  <button
+                  <Button
                     type="button"
                     onClick={() => setShowTerms(true)}
                     style={{
@@ -435,23 +436,22 @@ export default function SignupPage() {
                     }}
                   >
                     Terms and Conditions
-                  </button>{" "}
+                  </Button>{" "}
                   *
                 </span>
-              </label>
+              </Label>
             </div>
 
             <div className="checkbox-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
+              <Label className="checkbox-label">
+                <Checkbox
                   checked={rules}
-                  onChange={(event) => setRules(event.target.checked)}
+                  onCheckedChange={(checked) => setRules(checked === true)}
                 />
 
                 <span>
                   I agree to the{" "}
-                  <button
+                  <Button
                     type="button"
                     onClick={() => setShowRules(true)}
                     style={{
@@ -465,53 +465,42 @@ export default function SignupPage() {
                     }}
                   >
                     Rules and Regulations
-                  </button>{" "}
+                  </Button>{" "}
                   *
                 </span>
-              </label>
+              </Label>
             </div>
 
-            {error && <p className="auth-status error">{error}</p>}
+            {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
 
-            <button
+            <Button
               type="submit"
               className="auth-button"
               style={{ marginTop: "1.5rem" }}
               disabled={isSubmitting}
             >
               {isSubmitting ? "Creating account..." : "Create Account"}
-            </button>
+            </Button>
 
             <p className="auth-footer">
               Already have an account? <Link href="/login">Sign in</Link>
             </p>
           </form>
-        </div>
+        </Card>
       </main>
 
-      {activeDialog && (
-        <div
-          className="store-modal-backdrop"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setShowTerms(false);
-              setShowRules(false);
-            }
-          }}
-        >
-          <div className="store-modal" role="dialog" aria-modal="true" aria-labelledby="signup-dialog-title" tabIndex={-1} ref={dialogRef}>
-            <button type="button" className="store-modal-close" aria-label="Close dialog" onClick={() => { setShowTerms(false); setShowRules(false); }}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
-            <h2 id="signup-dialog-title">{activeDialog === "terms" ? "Terms and Conditions" : "Rules and Regulations"}</h2>
+      <Dialog open={Boolean(activeDialog)} onOpenChange={(open) => { if (!open) { setShowTerms(false); setShowRules(false); } }}>
+          <DialogContent ref={dialogRef} className="store-modal">
+            <DialogHeader><DialogTitle id="signup-dialog-title">{activeDialog === "terms" ? "Terms and Conditions" : "Rules and Regulations"}</DialogTitle></DialogHeader>
             <div className="store-modal-content">
               {activeDialog === "terms" ? <><p>1. You must provide accurate information.</p><p>2. You are responsible for maintaining your account security.</p><p>3. All sales are final unless product is defective.</p><p>4. We reserve the right to terminate accounts for violations.</p></> : <><p>1. No reselling of products without permission.</p><p>2. Respect other users and staff.</p><p>3. No fraudulent transactions.</p><p>4. Follow all local laws regarding electronics.</p></>}
             </div>
             <div className="store-modal-actions">
-              <button type="button" className="auth-submit" onClick={() => { if (activeDialog === "terms") setTerms(true); else setRules(true); setShowTerms(false); setShowRules(false); }}>I agree</button>
-              <button type="button" className="auth-submit store-modal-secondary" onClick={() => { setShowTerms(false); setShowRules(false); }}>Close</button>
+              <Button type="button" className="auth-submit" onClick={() => { if (activeDialog === "terms") setTerms(true); else setRules(true); setShowTerms(false); setShowRules(false); }}>I agree</Button>
+              <DialogClose asChild><Button type="button" className="auth-submit store-modal-secondary">Close</Button></DialogClose>
             </div>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+      </Dialog>
 
       {showSuccess && (
         <div

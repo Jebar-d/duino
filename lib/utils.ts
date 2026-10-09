@@ -1,12 +1,6 @@
-export function cn(...inputs: unknown[]) {
-  return inputs
-    .flatMap((input) => {
-      if (Array.isArray(input)) {
-        return input;
-      }
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-      return [input];
-    })
-    .filter((value) => typeof value === "string" && value.trim().length > 0)
-    .join(" ");
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }

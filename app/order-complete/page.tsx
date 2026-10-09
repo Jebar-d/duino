@@ -5,6 +5,8 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 import { Badge } from "../../components/ui/8bit/badge";
+import { Button } from "../../components/ui/8bit/button";
+import { Alert, AlertDescription } from "../../components/ui/8bit/alert";
 
 type OrderData = {
   id: string;
@@ -151,7 +153,7 @@ function OrderCompleteContent() {
 
           <div className="order-number">
             <div><span>Order Number</span><strong>{order.id}</strong></div>
-            <button type="button" onClick={copyOrderNumber}>{copied ? "Copied" : "Copy"}</button>
+            <Button type="button" variant="outline" font="retro" onClick={copyOrderNumber}>{copied ? "Copied" : "Copy"}</Button>
           </div>
 
           <section className="receipt-block" aria-label="Order receipt">
@@ -166,7 +168,7 @@ function OrderCompleteContent() {
             <div className="order-information">
               <div><span>Payment method</span><strong>{order.payment_method === "cod" ? "Cash on Delivery" : order.payment_method.toUpperCase()}</strong></div>
               <div><span>Shipping method</span><strong>{order.shipping_method === "standard" ? "Standard Shipping" : order.shipping_method}</strong></div>
-              <div><span>Payment status</span><Badge className="receipt-status" font="normal" variant="outline">{statusLabel}</Badge></div>
+              <div><span>Payment status</span><Badge variant="outline">{statusLabel}</Badge></div>
             </div>
           </section>
 
@@ -178,10 +180,10 @@ function OrderCompleteContent() {
             </div>)}
           </div>}
 
-          {error && <p className="order-success-message" role="alert">{error}</p>}
+          {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
           {online && !cancelled && !paid && <div className="order-complete-actions">
-            <button type="button" onClick={startCheckout} disabled={isRedirecting}>{isRedirecting ? "Redirecting to payment…" : "Pay now"}</button>
-            <button type="button" onClick={checkStatus}>Check payment status</button>
+            <Button type="button" onClick={startCheckout} disabled={isRedirecting}>{isRedirecting ? "Redirecting to payment..." : "Pay now"}</Button>
+            <Button type="button" variant="outline" onClick={checkStatus}>Check payment status</Button>
           </div>}
           <div className="order-complete-actions">
             <Link href="/products">Continue shopping</Link>

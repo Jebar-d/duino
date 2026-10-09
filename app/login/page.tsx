@@ -5,6 +5,12 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 import { useSession } from "../../components/SessionProvider";
+import { Card } from "../../components/ui/8bit/card";
+import { Button } from "../../components/ui/8bit/button";
+import { Input } from "../../components/ui/8bit/input";
+import { Label } from "../../components/ui/8bit/label";
+import { Alert, AlertDescription } from "../../components/ui/8bit/alert";
+import { toast } from "../../components/ui/8bit/toast";
 
 type LoginResponse = {
   success: boolean;
@@ -60,6 +66,7 @@ export default function LoginPage() {
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to log in.");
+      toast(error instanceof Error ? error.message : "Unable to log in.");
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +75,7 @@ export default function LoginPage() {
   return (
     <main className="auth-page">
       <section className="auth-container">
-        <div className="auth-card">
+        <Card className="auth-card">
           <div className="auth-header">
             <h1>Welcome Back</h1>
             <p>Log in to your Arduino Store account.</p>
@@ -76,8 +83,8 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="form-group">
-              <label htmlFor="email">Email</label>
-              <input
+              <Label htmlFor="email">Email</Label>
+              <Input
                 id="email"
                 type="email"
                 value={email}
@@ -89,8 +96,8 @@ export default function LoginPage() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input
+              <Label htmlFor="password">Password</Label>
+              <Input
                 id="password"
                 type="password"
                 value={password}
@@ -101,11 +108,11 @@ export default function LoginPage() {
               />
             </div>
 
-            {message && <div className="auth-message">{message}</div>}
+            {message && <Alert variant="destructive"><AlertDescription>{message}</AlertDescription></Alert>}
 
-            <button type="submit" className="auth-submit" disabled={isLoading}>
+            <Button type="submit" className="auth-submit" disabled={isLoading}>
               {isLoading ? "Logging in..." : "Log In"}
-            </button>
+            </Button>
           </form>
 
           <div className="auth-footer">
@@ -114,7 +121,7 @@ export default function LoginPage() {
               <Link href="/signup">Create an account</Link>
             </p>
           </div>
-        </div>
+        </Card>
       </section>
     </main>
   );

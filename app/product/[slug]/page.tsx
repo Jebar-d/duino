@@ -6,6 +6,11 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "../../../lib/api";
+import { Button } from "../../../components/ui/8bit/button";
+import { Textarea } from "../../../components/ui/8bit/textarea";
+import { Label } from "../../../components/ui/8bit/label";
+import { Tabs, TabsList, TabsTrigger } from "../../../components/ui/8bit/tabs";
+import { Alert, AlertDescription } from "../../../components/ui/8bit/alert";
 import {
   getProductImageUrl,
   handleProductImageError,

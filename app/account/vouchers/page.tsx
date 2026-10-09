@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "../../../lib/api";
+import { Button } from "../../../components/ui/8bit/button";
+import { Card } from "../../../components/ui/8bit/card";
+import { Alert, AlertDescription } from "../../../components/ui/8bit/alert";
+import { Skeleton } from "../../../components/ui/8bit/skeleton";
+import { toast } from "../../../components/ui/8bit/toast";
 
 type Promo = {
   id: string;
@@ -56,6 +61,7 @@ export default function VouchersPage() {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(code);
+      toast("Voucher code copied.");
       setTimeout(() => setCopied(""), 1800);
     } catch {
       setCopied("");
@@ -76,7 +82,7 @@ export default function VouchersPage() {
           </div>
         </div>
 
-        {error && <div className="acct-message error">{error}</div>}
+        {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
 
         {loading ? (
           <p className="acct-muted">Loading vouchers…</p>
@@ -88,7 +94,7 @@ export default function VouchersPage() {
         ) : (
           <div className="voucher-grid">
             {available.map((promo) => (
-              <article key={promo.id} className="voucher-card">
+              <Card key={promo.id} className="voucher-card">
                 <div className="voucher-value">
                   {promo.is_free_shipping && promo.discount_percent === 0
                     ? "FREE SHIPPING"
@@ -116,14 +122,15 @@ export default function VouchersPage() {
                     ).toLocaleDateString()}
                   </li>
                 </ul>
-                <button
+                <Button
+                  variant="outline"
                   type="button"
                   className="acct-btn primary"
                   onClick={() => copy(promo.code)}
                 >
                   {copied === promo.code ? "Copied!" : "Copy code"}
-                </button>
-              </article>
+                </Button>
+              </Card>
             ))}
           </div>
         )}

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Award, Mail } from "lucide-react";
+import { Button } from "../../components/ui/8bit/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/8bit/card";
 
 const team = [
   { name: "Aboy, Den Gebhard S.", role: "Leader · JS & Git", description: "Project lead & full-stack developer. Manages the codebase, git workflow, and all JavaScript logic.", image: "/den.jpg" },

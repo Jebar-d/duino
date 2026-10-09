@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ContactForm from "../../components/ContactForm";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/8bit/card";
 
 const contactItems = [
   ["Email Us", "support@arduinostore.ph", "sales@arduinostore.ph"],

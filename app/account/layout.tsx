@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { Button } from "../../components/ui/8bit/button";
 
 const tabs = [
   { href: "/account/profile", label: "Profile" },
@@ -20,16 +21,24 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
     <>
       <nav className="account-tabs" aria-label="Account sections">
         <div className="account-tabs-inner">
-          {tabs.map((tab) => (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={pathname.startsWith(tab.href) ? "active" : ""}
-              aria-current={pathname.startsWith(tab.href) ? "page" : undefined}
-            >
-              {tab.label}
-            </Link>
-          ))}
+          {tabs.map((tab) => {
+            const active = pathname.startsWith(tab.href);
+            return (
+              <Button
+                key={tab.href}
+                asChild
+                variant={active ? "default" : "ghost"}
+                className={active ? "active" : ""}
+              >
+                <Link
+                  href={tab.href}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {tab.label}
+                </Link>
+              </Button>
+            );
+          })}
         </div>
       </nav>
       {children}

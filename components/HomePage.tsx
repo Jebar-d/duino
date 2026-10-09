@@ -3,10 +3,13 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Clock3, Info, X } from "lucide-react";
+import { Clock3, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../lib/api";
+import { Button } from "./ui/8bit/button";
+import { Input } from "./ui/8bit/input";
+import { toast as pixelToast } from "./ui/8bit/toast";
 import {
   getProductImageUrl,
   handleProductImageError,
@@ -51,11 +54,6 @@ export default function HomePage() {
   const [promoSeconds, setPromoSeconds] = useState(600);
   const [heroSearch, setHeroSearch] = useState("");
   const [newsletterEmail, setNewsletterEmail] = useState("");
-  const [toast, setToast] = useState<{
-    title: string;
-    message?: string;
-    type: "success" | "error" | "info";
-  } | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -75,17 +73,10 @@ export default function HomePage() {
   function showToast(
     title: string,
     message?: string,
-    type: "success" | "error" | "info" = "info",
+    _type: "success" | "error" | "info" = "info",
   ) {
-    setToast({
-      title,
-      message,
-      type,
-    });
-
-    setTimeout(() => {
-      setToast(null);
-    }, 3500);
+    void _type;
+    pixelToast(`${title}${message ? `: ${message}` : ""}`);
   }
 
   useEffect(() => {
@@ -417,32 +408,14 @@ export default function HomePage() {
         </div>
       </div>
 
-      {toast && (
-        <div id="toast-container">
-          <div className={`toast ${toast.type}`}>
-            <span className="toast-icon">
-              {toast.type === "success"
-                ? <Check size={16} aria-hidden="true" />
-                : toast.type === "error"
-                  ? <X size={16} aria-hidden="true" />
-                  : <Info size={16} aria-hidden="true" />}
-            </span>
-
-            <div className="toast-title">{toast.title}</div>
-
-            {toast.message && <div className="toast-msg">{toast.message}</div>}
-          </div>
-        </div>
-      )}
-
       <div className={`promo-popup-overlay ${promoOpen ? "" : "hidden"}`}>
         <div className="promo-popup">
-          <button
+          <Button
             className="promo-popup-close"
             onClick={() => setPromoOpen(false)}
           >
             <X size={18} aria-hidden="true" />
-          </button>
+          </Button>
 
           <div className="promo-popup-badge">Limited Time Offer</div>
 
@@ -459,7 +432,7 @@ export default function HomePage() {
           <div className="promo-code-box">
             <span className="code">{promoCode}</span>
 
-            <button onClick={copyPromoCode}>Copy</button>
+            <Button onClick={copyPromoCode}>Copy</Button>
           </div>
 
           <Link
@@ -470,12 +443,12 @@ export default function HomePage() {
             Shop Now &amp; Save
           </Link>
 
-          <button
+          <Button
             className="promo-popup-skip"
             onClick={() => setPromoOpen(false)}
           >
             Maybe later
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -509,7 +482,7 @@ export default function HomePage() {
                 Browse Products
               </Link>
 
-              <button
+              <Button
                 className="btn-hero-secondary"
                 onClick={() => {
                   document.querySelector(".featured-grid")?.scrollIntoView({
@@ -518,11 +491,11 @@ export default function HomePage() {
                 }}
               >
                 Featured Items ↓
-              </button>
+              </Button>
             </div>
 
             <div className="hero-search">
-              <input
+              <Input
                 type="text"
                 value={heroSearch}
                 placeholder="Search products, boards, sensors…"
@@ -534,7 +507,7 @@ export default function HomePage() {
                 }}
               />
 
-              <button onClick={doHeroSearch} aria-label="Search">
+              <Button onClick={doHeroSearch} aria-label="Search">
                 <svg
                   viewBox="0 0 24 24"
                   width="16"
@@ -547,7 +520,7 @@ export default function HomePage() {
 
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -1064,16 +1037,16 @@ export default function HomePage() {
           </div>
 
           <div className="carousel-nav">
-            <button
+            <Button
               className="carousel-btn"
               onClick={() => goToSlide(currentSlide - 1)}
             >
               &#8592;
-            </button>
+            </Button>
 
             <div className="carousel-dots">
               {[0, 1, 2].map((index) => (
-                <button
+                <Button
                   key={index}
                   className={`carousel-dot ${
                     currentSlide === index ? "active" : ""
@@ -1083,12 +1056,12 @@ export default function HomePage() {
               ))}
             </div>
 
-            <button
+            <Button
               className="carousel-btn"
               onClick={() => goToSlide(currentSlide + 1)}
             >
               &#8594;
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -1199,7 +1172,7 @@ export default function HomePage() {
         <h2 className="section-title">Featured Products</h2>
 
         <div className="search-bar-wrap">
-          <input
+          <Input
             type="text"
             value={productSearch}
             placeholder="Search featured products…"
@@ -1325,7 +1298,7 @@ export default function HomePage() {
                         {product.stock === 0 ? "View Product" : "View Details"}
                       </span>
 
-                      <button
+                      <Button
                         className={`wishlist-btn ${inWishlist ? "active" : ""}`}
                         onClick={(event) => {
                           event.preventDefault();
@@ -1339,7 +1312,7 @@ export default function HomePage() {
                         }
                       >
                         {heartIcon(inWishlist)}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </Link>
@@ -1532,7 +1505,7 @@ export default function HomePage() {
                       )}
                     </div>
 
-                    <button
+                    <Button
                       onClick={() => claimVoucher(promo.code)}
                       className="voucher-claim"
                       style={{
@@ -1550,7 +1523,7 @@ export default function HomePage() {
                       {promo.is_free_shipping
                         ? "Free Ship"
                         : `${promo.discount_percent}% Off`}
-                    </button>
+                    </Button>
                   </div>
 
                   {promo.valid_until && (
@@ -1583,7 +1556,7 @@ export default function HomePage() {
           </p>
 
           <div className="newsletter-form">
-            <input
+            <Input
               type="email"
               value={newsletterEmail}
               placeholder="your@email.com"
@@ -1595,7 +1568,7 @@ export default function HomePage() {
               }}
             />
 
-            <button onClick={subscribeNewsletter}>Subscribe</button>
+            <Button onClick={subscribeNewsletter}>Subscribe</Button>
           </div>
         </div>
       </main>

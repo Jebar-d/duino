@@ -4,6 +4,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "../../../../lib/api";
+import { Button } from "../../../../components/ui/8bit/button";
+import { Input } from "../../../../components/ui/8bit/input";
+import { Textarea } from "../../../../components/ui/8bit/textarea";
+import { Label } from "../../../../components/ui/8bit/label";
+import { RadioGroup, RadioGroupItem } from "../../../../components/ui/8bit/radio-group";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "../../../../components/ui/8bit/dialog";
+import { Alert, AlertDescription } from "../../../../components/ui/8bit/alert";
 import {
   getProductImageUrl,
   handleProductImageError,

@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../../../lib/api";
+import { Button } from "../../../components/ui/8bit/button";
+import { Alert, AlertDescription } from "../../../components/ui/8bit/alert";
+import { Card } from "../../../components/ui/8bit/card";
+import { toast } from "../../../components/ui/8bit/toast";
 
 type Notification = {
   id: number;
@@ -58,6 +62,7 @@ export default function NotificationsPage() {
       await apiFetch(endpoint, { method: "POST", body: JSON.stringify(body) });
       await load();
       announce();
+      toast("Notifications updated.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     }
@@ -105,15 +110,17 @@ export default function NotificationsPage() {
           </div>
 
           <div className="acct-actions">
-            <button
+            <Button
+              variant="outline"
               type="button"
               className="acct-btn"
               disabled={unread === 0}
               onClick={() => act("/notifications/mark-read.php", { all: true })}
             >
               Mark all read
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
               type="button"
               className="acct-btn"
               disabled={readCount === 0}
@@ -122,11 +129,11 @@ export default function NotificationsPage() {
               }
             >
               Clear read
-            </button>
+            </Button>
           </div>
         </div>
 
-        {error && <div className="acct-message error">{error}</div>}
+        {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
 
         {items.length === 0 ? (
           <div className="acct-empty">
@@ -139,10 +146,8 @@ export default function NotificationsPage() {
               const isRead = Boolean(Number(item.is_read));
 
               return (
-                <li
-                  key={item.id}
-                  className={`notif-item${isRead ? "" : " unread"}`}
-                >
+                <li key={item.id} className={`notif-item${isRead ? "" : " unread"}`}>
+                  <Card className="notif-card">
                   <div className="notif-body">
                     <div className="notif-title">
                       {!isRead && <span className="notif-dot" aria-hidden />}
@@ -164,7 +169,8 @@ export default function NotificationsPage() {
 
                   <div className="notif-actions">
                     {!isRead && (
-                      <button
+                      <Button
+                        variant="outline"
                         type="button"
                         className="acct-btn small"
                         onClick={() =>
@@ -172,9 +178,10 @@ export default function NotificationsPage() {
                         }
                       >
                         Mark read
-                      </button>
+                      </Button>
                     )}
-                    <button
+                    <Button
+                      variant="destructive"
                       type="button"
                       className="acct-btn small danger"
                       onClick={() =>
@@ -182,8 +189,9 @@ export default function NotificationsPage() {
                       }
                     >
                       Delete
-                    </button>
+                    </Button>
                   </div>
+                  </Card>
                 </li>
               );
             })}

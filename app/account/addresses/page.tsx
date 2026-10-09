@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../../../lib/api";
+import { Button } from "../../../components/ui/8bit/button";
+import { Input } from "../../../components/ui/8bit/input";
+import { Label } from "../../../components/ui/8bit/label";
+import { Card } from "../../../components/ui/8bit/card";
+import { Alert, AlertDescription } from "../../../components/ui/8bit/alert";
 
 type Address = {
   first_name: string;
@@ -134,9 +139,9 @@ export default function AddressesPage() {
           <div className="acct-empty">
             <h2>Please log in</h2>
             <p>Log in to manage your saved addresses.</p>
-            <Link href="/login" className="acct-btn primary">
-              Log In
-            </Link>
+            <Button asChild className="acct-btn primary">
+              <Link href="/login">Log In</Link>
+            </Button>
           </div>
         </div>
       </main>
@@ -156,22 +161,23 @@ export default function AddressesPage() {
           </div>
 
           {!showForm && (
-            <button
+            <Button
               type="button"
               className="acct-btn primary"
               onClick={openAdd}
               disabled={addresses.length >= MAX_ADDRESSES}
             >
               + Add address
-            </button>
+            </Button>
           )}
         </div>
 
-        {error && <div className="acct-message error">{error}</div>}
-        {success && <div className="acct-message success">{success}</div>}
+        {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+        {success && <Alert><AlertDescription>{success}</AlertDescription></Alert>}
 
         {showForm && (
-          <form className="account-profile-card addr-form" onSubmit={submit}>
+          <form className="addr-form" onSubmit={submit}>
+            <Card className="account-profile-card">
             <h2>{editingIndex === null ? "New address" : "Edit address"}</h2>
 
             <div className="account-profile-grid">
@@ -192,8 +198,8 @@ export default function AddressesPage() {
                   key={field}
                   className={`account-profile-field${field === "address_line" ? " account-profile-field-full" : ""}`}
                 >
-                  <label htmlFor={`addr-${field}`}>{label}</label>
-                  <input
+                  <Label htmlFor={`addr-${field}`}>{label}</Label>
+                  <Input
                     id={`addr-${field}`}
                     value={form[field]}
                     required={required}
@@ -209,17 +215,19 @@ export default function AddressesPage() {
             </div>
 
             <div className="acct-actions">
-              <button type="submit" className="acct-btn primary" disabled={saving}>
+              <Button type="submit" className="acct-btn primary" disabled={saving}>
                 {saving ? "Saving…" : "Save address"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
                 className="acct-btn"
                 onClick={() => setShowForm(false)}
               >
                 Cancel
-              </button>
+              </Button>
             </div>
+            </Card>
           </form>
         )}
 

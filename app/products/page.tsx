@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../lib/api";
+import { Input } from "../../components/ui/8bit/input";
+import { Alert, AlertDescription, AlertTitle } from "../../components/ui/8bit/alert";
+import { Skeleton } from "../../components/ui/8bit/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/8bit/select";
+import { Card } from "../../components/ui/8bit/card";
 import {
   getProductImageUrl,
   handleProductImageError,
@@ -136,7 +141,7 @@ export default function ProductsPage() {
 
         <section className="products-controls">
           <div className="search-box">
-            <input
+            <Input
               id="product-search"
               type="search"
               aria-label="Search products"
@@ -149,47 +154,28 @@ export default function ProductsPage() {
           </div>
 
           <div className="category-box">
-            <select
-              id="category-filter"
-              aria-label="Filter products by category"
-              value={category}
-              onChange={(event) => {
-                setCategory(event.target.value);
-              }}
-            >
-              <option value="">All Categories</option>
-
-              {categories.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
+            <Select value={category || "all"} onValueChange={(value) => setCategory(value === "all" ? "" : value)}>
+              <SelectTrigger id="category-filter" aria-label="Filter products by category">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
         </section>
 
         <section id="product-grid" className="product-grid">
           {isLoading ? (
-            <div className="empty-state">
-              <h2>Loading products...</h2>
-
-              <p>Please wait.</p>
-            </div>
+              <div className="empty-state" aria-label="Loading products"><Skeleton className="h-8 w-48" /><Skeleton className="mt-3 h-4 w-32" /></div>
           ) : error ? (
-            <div className="empty-state">
-              <h2>Unable to load products</h2>
-
-              <p>{error}</p>
-            </div>
+            <Alert variant="destructive"><AlertTitle>Unable to load products</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>
           ) : filteredProducts.length === 0 ? (
-            <div className="empty-state">
-              <h2>No products found</h2>
-
-              <p>
+            <Alert><AlertTitle>No products found</AlertTitle><AlertDescription>
                 There are currently no products matching your search or
                 category.
-              </p>
-            </div>
+            </AlertDescription></Alert>
           ) : (
             filteredProducts.map((product) => (
               <Link
@@ -197,6 +183,7 @@ export default function ProductsPage() {
                 href={`/product/${product.slug}`}
                 className="product-card"
               >
+                <Card>
                 <div className="product-image-wrapper">
                   <img
                     src={getProductImageUrl(product.img_url)}
@@ -225,6 +212,7 @@ export default function ProductsPage() {
                     <p className="product-stock out-of-stock">✗ Out of Stock</p>
                   )}
                 </div>
+                </Card>
               </Link>
             ))
           )}

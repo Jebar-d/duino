@@ -5,6 +5,14 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 import { useSession } from "../../components/SessionProvider";
+import { Button } from "../../components/ui/8bit/button";
+import { Input } from "../../components/ui/8bit/input";
+import { Textarea } from "../../components/ui/8bit/textarea";
+import { Label } from "../../components/ui/8bit/label";
+import { Checkbox } from "../../components/ui/8bit/checkbox";
+import { RadioGroup, RadioGroupItem } from "../../components/ui/8bit/radio-group";
+import { Alert, AlertDescription } from "../../components/ui/8bit/alert";
+import { Card } from "../../components/ui/8bit/card";
 
 type SavedAddress = {
   first_name?: string; middle_name?: string; last_name?: string; suffix?: string;
@@ -404,32 +412,32 @@ export default function CheckoutPage() {
           <Link href="/cart">Back to Cart</Link>
         </div>
 
-        {message && <div className="checkout-message">{message}</div>}
+        {message && <Alert variant="destructive"><AlertDescription>{message}</AlertDescription></Alert>}
 
         <form onSubmit={handleSubmit} className="checkout-layout">
           <div className="checkout-form-section">
-            <section className="checkout-card">
+            <Card className="checkout-card">
               <h2>Shipping Information</h2>
 
-              <div className="checkout-address-picker" role="radiogroup" aria-label="Deliver to">
+              <RadioGroup className="checkout-address-picker" aria-label="Deliver to" value={selectedAddress} onValueChange={selectShippingAddress}>
                 <strong>Deliver to</strong>
                 {savedAddresses.map((address, index) => (
-                  <label key={`${address.address_line}-${index}`}>
-                    <input type="radio" name="savedAddress" checked={selectedAddress === String(index)} onChange={() => selectShippingAddress(String(index))} />
+                  <Label key={`${address.address_line}-${index}`}>
+                    <RadioGroupItem value={String(index)} aria-label={`Use address ${index + 1}`} />
                     <strong>{[address.first_name, address.last_name].filter(Boolean).join(" ") || "Saved address"}</strong>
                     <p>{address.address_line}</p>
                     <p>{[address.city, address.province, address.postal_code].filter(Boolean).join(", ")}</p>
                     <p>{address.contact_number}</p>
-                  </label>
+                  </Label>
                 ))}
-                <label><input type="radio" name="savedAddress" checked={selectedAddress === "different"} onChange={() => selectShippingAddress("different")} />Enter a different address</label>
-              </div>
+                <Label><RadioGroupItem value="different" aria-label="Enter a different address" />Enter a different address</Label>
+              </RadioGroup>
 
               <div className="checkout-field-row">
                 <div className="checkout-field">
-                  <label htmlFor="firstName">First Name</label>
+                  <Label htmlFor="firstName">First Name</Label>
 
-                  <input
+                  <Input
                     id="firstName"
                     type="text"
                     value={firstName}
@@ -439,9 +447,9 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="checkout-field">
-                  <label htmlFor="lastName">Last Name</label>
+                  <Label htmlFor="lastName">Last Name</Label>
 
-                  <input
+                  <Input
                     id="lastName"
                     type="text"
                     value={lastName}
@@ -452,9 +460,9 @@ export default function CheckoutPage() {
               </div>
 
               <div className="checkout-field">
-                <label htmlFor="contactNumber">Contact Number</label>
+                <Label htmlFor="contactNumber">Contact Number</Label>
 
-                <input
+                <Input
                   id="contactNumber"
                   type="text"
                   value={contactNumber}
@@ -464,9 +472,9 @@ export default function CheckoutPage() {
               </div>
 
               <div className="checkout-field">
-                  <label htmlFor="addressLine">Street / house no. / barangay</label>
+                  <Label htmlFor="addressLine">Street / house no. / barangay</Label>
 
-                <input
+                <Input
                   id="addressLine"
                   type="text"
                   value={addressLine}
@@ -476,17 +484,17 @@ export default function CheckoutPage() {
               </div>
 
               <div className="checkout-field-row">
-                <div className="checkout-field"><label htmlFor="city">City / municipality</label><input id="city" value={city} onChange={(event) => updateShippingField("city", event.target.value)} required /></div>
-                <div className="checkout-field"><label htmlFor="province">Province</label><input id="province" value={province} onChange={(event) => updateShippingField("province", event.target.value)} required /></div>
+                <div className="checkout-field"><Label htmlFor="city">City / municipality</Label><Input id="city" value={city} onChange={(event) => updateShippingField("city", event.target.value)} required /></div>
+                <div className="checkout-field"><Label htmlFor="province">Province</Label><Input id="province" value={province} onChange={(event) => updateShippingField("province", event.target.value)} required /></div>
               </div>
-              <div className="checkout-field"><label htmlFor="postalCode">Postal code</label><input id="postalCode" inputMode="numeric" value={postalCode} onChange={(event) => updateShippingField("postalCode", event.target.value)} required /></div>
-              <label className="checkout-save-address"><input type="checkbox" checked={saveAddress} onChange={(event) => setSaveAddress(event.target.checked)} />Save this address to my account</label>
+              <div className="checkout-field"><Label htmlFor="postalCode">Postal code</Label><Input id="postalCode" inputMode="numeric" value={postalCode} onChange={(event) => updateShippingField("postalCode", event.target.value)} required /></div>
+              <Label className="checkout-save-address"><Checkbox checked={saveAddress} onCheckedChange={(checked) => setSaveAddress(checked === true)} />Save this address to my account</Label>
 
               <div className="checkout-field-row">
                 <div className="checkout-field">
-                  <label htmlFor="city">City</label>
+                  <Label htmlFor="city">City</Label>
 
-                  <input
+                  <Input
                     id="city"
                     type="text"
                     value={city}
@@ -496,9 +504,9 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="checkout-field">
-                  <label htmlFor="province">Province</label>
+                  <Label htmlFor="province">Province</Label>
 
-                  <input
+                  <Input
                     id="province"
                     type="text"
                     value={province}
@@ -509,9 +517,9 @@ export default function CheckoutPage() {
               </div>
 
               <div className="checkout-field">
-                <label htmlFor="postalCode">Postal Code</label>
+                <Label htmlFor="postalCode">Postal Code</Label>
 
-                <input
+                <Input
                   id="postalCode"
                   type="text"
                   value={postalCode}
@@ -519,69 +527,43 @@ export default function CheckoutPage() {
                   required
                 />
               </div>
-            </section>
+            </Card>
 
-            <section className="checkout-card">
+            <Card className="checkout-card">
               <h2>Shipping Method</h2>
 
-              <label className="checkout-option">
-                <input
-                  type="radio"
-                  name="shippingMethod"
-                  value="standard"
-                  checked={shippingMethod === "standard"}
-                  onChange={(event) => setShippingMethod(event.target.value)}
-                />
+              <RadioGroup value={shippingMethod} onValueChange={setShippingMethod} aria-label="Shipping method">
+                <Label className="checkout-option"><RadioGroupItem value="standard" /><span>Standard Shipping</span></Label>
+              </RadioGroup>
+            </Card>
 
-                <span>Standard Shipping</span>
-              </label>
-            </section>
-
-            <section className="checkout-card">
+            <Card className="checkout-card">
               <h2>Payment Method</h2>
 
-              <label className="checkout-option">
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="cod"
-                  checked={paymentMethod === "cod"}
-                  onChange={(event) => setPaymentMethod(event.target.value)}
-                />
-
-                <span>Cash on Delivery</span>
-              </label>
-
-              <label className="checkout-option">
-                <input type="radio" name="paymentMethod" value="gcash" checked={paymentMethod === "gcash"} disabled={!onlineEnabled} onChange={(event) => setPaymentMethod(event.target.value)} />
-                <span>GCash</span>
-              </label>
-              <label className="checkout-option">
-                <input type="radio" name="paymentMethod" value="maya" checked={paymentMethod === "maya"} disabled={!onlineEnabled} onChange={(event) => setPaymentMethod(event.target.value)} />
-                <span>Maya</span>
-              </label>
-              <label className="checkout-option">
-                <input type="radio" name="paymentMethod" value="card" checked={paymentMethod === "card"} disabled={!onlineEnabled} onChange={(event) => setPaymentMethod(event.target.value)} />
-                <span>Card</span>
-              </label>
+              <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} aria-label="Payment method">
+                <Label className="checkout-option"><RadioGroupItem value="cod" /><span>Cash on Delivery</span></Label>
+                <Label className="checkout-option"><RadioGroupItem value="gcash" disabled={!onlineEnabled} /><span>GCash</span></Label>
+                <Label className="checkout-option"><RadioGroupItem value="maya" disabled={!onlineEnabled} /><span>Maya</span></Label>
+                <Label className="checkout-option"><RadioGroupItem value="card" disabled={!onlineEnabled} /><span>Card</span></Label>
+              </RadioGroup>
               {!onlineEnabled && <p>Online payment is not set up yet. Only Cash on Delivery is available.</p>}
-            </section>
+            </Card>
 
-            <section className="checkout-card">
+            <Card className="checkout-card">
               <h2>Order Notes</h2>
 
               <div className="checkout-field">
-                <textarea
+                <Textarea
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
                   placeholder="Optional notes for your order"
                   rows={4}
                 />
               </div>
-            </section>
+            </Card>
           </div>
 
-          <aside className="checkout-summary">
+          <Card className="checkout-summary">
             <h2>Order Summary</h2>
 
             <div className="checkout-items">
@@ -604,9 +586,9 @@ export default function CheckoutPage() {
               <h2>Promo Code</h2>
 
               <div className="checkout-field">
-                <label htmlFor="promoCode">Enter promo code</label>
+                <Label htmlFor="promoCode">Enter promo code</Label>
 
-                <input
+                <Input
                   id="promoCode"
                   type="text"
                   value={promoCode}
@@ -619,22 +601,22 @@ export default function CheckoutPage() {
               </div>
 
               {!promo ? (
-                <button
+                <Button
                   type="button"
                   className="checkout-submit"
                   onClick={handleApplyPromo}
                   disabled={isApplyingPromo}
                 >
                   {isApplyingPromo ? "Applying..." : "Apply Promo"}
-                </button>
+                </Button>
               ) : (
-                <button
+                <Button
                   type="button"
                   className="checkout-submit"
                   onClick={handleRemovePromo}
                 >
                   Remove Promo
-                </button>
+                </Button>
               )}
 
               {promoMessage && <p>{promoMessage}</p>}
@@ -675,7 +657,7 @@ export default function CheckoutPage() {
               <strong>{formatPrice(totalCents)}</strong>
             </div>
 
-            <button
+            <Button
               type="submit"
               className="checkout-submit"
               disabled={isSubmitting}
@@ -687,8 +669,8 @@ export default function CheckoutPage() {
                 : paymentMethod === "cod"
                   ? "Place Order"
                   : "Continue to Payment"}
-            </button>
-          </aside>
+            </Button>
+          </Card>
         </form>
       </section>
     </main>

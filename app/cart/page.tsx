@@ -7,6 +7,11 @@ import {
   getProductImageUrl,
   handleProductImageError,
 } from "../../lib/product-assets";
+import { Button } from "../../components/ui/8bit/button";
+import { Card } from "../../components/ui/8bit/card";
+import { Alert, AlertDescription } from "../../components/ui/8bit/alert";
+import { Skeleton } from "../../components/ui/8bit/skeleton";
+import { toast } from "../../components/ui/8bit/toast";
 
 type Product = {
   id: string;
@@ -103,6 +108,7 @@ export default function CartPage() {
       });
 
       await loadCart();
+      toast("Cart quantity updated.");
       window.dispatchEvent(new Event("store:counts-changed"));
     } catch (error) {
       setMessage(
@@ -129,6 +135,7 @@ export default function CartPage() {
       });
 
       await loadCart();
+      toast(`${item.product.name} removed from cart.`);
       window.dispatchEvent(new Event("store:counts-changed"));
     } catch (error) {
       setMessage(
@@ -154,7 +161,7 @@ export default function CartPage() {
       <main className="cart-page">
         <section className="cart-container">
           <h1>Shopping Cart</h1>
-          <p>Loading your cart...</p>
+          <Skeleton className="h-10 w-full" aria-label="Loading your cart" />
         </section>
       </main>
     );
@@ -178,7 +185,7 @@ export default function CartPage() {
           </Link>
         </div>
 
-        {message && <div className="cart-message">{message}</div>}
+        {message && <Alert variant="destructive"><AlertDescription>{message}</AlertDescription></Alert>}
 
         {items.length === 0 ? (
           <div className="cart-empty">
@@ -196,7 +203,7 @@ export default function CartPage() {
                 const lineTotal = product.price_cents * item.qty;
 
                 return (
-                  <article key={item.id} className="cart-item">
+                  <Card key={item.id} className="cart-item">
                     <Link
                       href={`/product/${product.slug}`}
                       className="cart-item-image"
@@ -228,7 +235,9 @@ export default function CartPage() {
 
                       <div className="cart-item-actions">
                         <div className="cart-quantity">
-                          <button
+                          <Button
+                            variant="outline"
+                            size="icon"
                             type="button"
                             onClick={() =>
                               updateQuantity(item.id, item.qty - 1)
@@ -238,13 +247,15 @@ export default function CartPage() {
                             }
                           >
                             −
-                          </button>
+                          </Button>
 
                           <span>
                             {updatingId === item.id ? "…" : item.qty}
                           </span>
 
-                          <button
+                          <Button
+                            variant="outline"
+                            size="icon"
                             type="button"
                             onClick={() =>
                               updateQuantity(item.id, item.qty + 1)
@@ -255,17 +266,18 @@ export default function CartPage() {
                             }
                           >
                             +
-                          </button>
+                          </Button>
                         </div>
 
-                        <button
+                        <Button
+                          variant="destructive"
                           type="button"
                           className="cart-remove"
                           onClick={() => removeItem(item.id)}
                           disabled={removingId === item.id}
                         >
                           {removingId === item.id ? "Removing..." : "Remove"}
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
@@ -273,12 +285,12 @@ export default function CartPage() {
                       <strong>{formatPrice(lineTotal)}</strong>
                       <span>{formatPrice(product.price_cents)} each</span>
                     </div>
-                  </article>
+                  </Card>
                 );
               })}
             </div>
 
-            <aside className="cart-summary">
+            <Card className="cart-summary">
               <h2>Order Summary</h2>
 
               <div className="cart-summary-row">
@@ -307,7 +319,7 @@ export default function CartPage() {
               <Link href="/checkout" className="cart-checkout-button">
                 Proceed to Checkout
               </Link>
-            </aside>
+            </Card>
           </div>
         )}
       </section>

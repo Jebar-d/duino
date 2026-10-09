@@ -7,6 +7,11 @@ import {
   getProductImageUrl,
   handleProductImageError,
 } from "../../lib/product-assets";
+import { Button } from "../../components/ui/8bit/button";
+import { Card } from "../../components/ui/8bit/card";
+import { Alert, AlertDescription } from "../../components/ui/8bit/alert";
+import { Skeleton } from "../../components/ui/8bit/skeleton";
+import { toast } from "../../components/ui/8bit/toast";
 
 type Product = {
   id: string;
@@ -84,6 +89,7 @@ export default function WishlistPage() {
       );
 
       setMessage("Product removed from your wishlist.");
+      toast("Product removed from your wishlist.");
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -100,7 +106,7 @@ export default function WishlistPage() {
       <main className="wishlist-page">
         <div className="wishlist-container">
           <h1>Wishlist</h1>
-          <p>Loading your wishlist...</p>
+          <Skeleton className="h-10 w-full" aria-label="Loading your wishlist" />
         </div>
       </main>
     );
@@ -121,10 +127,10 @@ export default function WishlistPage() {
             </p>
           </div>
 
-          <Link href="/products">Continue Shopping</Link>
+          <Button asChild><Link href="/products">Continue Shopping</Link></Button>
         </div>
 
-        {message && <div className="wishlist-message">{message}</div>}
+        {message && <Alert variant="destructive"><AlertDescription>{message}</AlertDescription></Alert>}
 
         {items.length === 0 ? (
           <div className="wishlist-empty">
@@ -135,7 +141,7 @@ export default function WishlistPage() {
         ) : (
           <div className="wishlist-grid">
             {items.map((item) => (
-              <article className="wishlist-card" key={item.id}>
+              <Card className="wishlist-card" key={item.id}>
                 <Link
                   href={`/product/${item.product.slug}`}
                   className="wishlist-image-link"
@@ -166,24 +172,20 @@ export default function WishlistPage() {
                   </div>
 
                   <div className="wishlist-actions">
-                    <Link
-                      href={`/product/${item.product.slug}`}
-                      className="wishlist-view-button"
-                    >
-                      View Product
-                    </Link>
+                    <Button asChild className="wishlist-view-button"><Link href={`/product/${item.product.slug}`}>View Product</Link></Button>
 
-                    <button
+                    <Button
+                      variant="destructive"
                       type="button"
                       className="wishlist-remove-button"
                       onClick={() => removeItem(item.id)}
                       disabled={removingId === item.id}
                     >
                       {removingId === item.id ? "Removing..." : "Remove"}
-                    </button>
+                    </Button>
                   </div>
                 </div>
-              </article>
+              </Card>
             ))}
           </div>
         )}

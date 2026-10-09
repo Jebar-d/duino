@@ -5,6 +5,10 @@ import { Bell, Heart, ShoppingCart, UserRound } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { useSession } from "./SessionProvider";
+import { Button } from "./ui/8bit/button";
+import { Badge } from "./ui/8bit/badge";
+import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "./ui/8bit/drawer";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/8bit/dropdown-menu";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -76,12 +80,20 @@ export default function Header() {
 
   return (
     <>
+      <Drawer
+        direction="left"
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        shouldScaleBackground={false}
+      >
       <header id="nav">
         <div className="header-inner">
-          <button
+          <DrawerTrigger asChild>
+          <Button
             className="burger-btn"
+            variant="ghost"
+            size="icon"
             aria-label="Open Menu"
-            onClick={() => setMenuOpen(true)}
           >
             <svg
               viewBox="0 0 24 24"
@@ -97,7 +109,8 @@ export default function Header() {
               <line x1="3" y1="6" x2="21" y2="6" />
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
-          </button>
+          </Button>
+          </DrawerTrigger>
 
           <Link href="/" className="header-logo-center">
             <img
@@ -132,12 +145,9 @@ export default function Header() {
                 </svg>
               </span>
             ) : user ? (
-              <Link
-                href="/account"
-                className="icon-btn"
-                title={`Account: ${displayName}`}
-                aria-label={`Account: ${displayName}`}
-              >
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="icon-btn" title={`Account: ${displayName}`} aria-label={`Account: ${displayName}`}>
                 <svg
                   viewBox="0 0 24 24"
                   width="24"
@@ -151,7 +161,14 @@ export default function Header() {
                   <circle cx="12" cy="8" r="4" />
                   <path d="M4 21c0-4 3.5-7 8-7s8 3 8 7" />
                 </svg>
-              </Link>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild><Link href="/account">My Account</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/account/orders">Orders</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><button type="button" disabled={loggingOut} onClick={logout}>{loggingOut ? "Logging out…" : "Log out"}</button></DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <Link
                 href="/login"
@@ -198,9 +215,9 @@ export default function Header() {
                   <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                 </svg>
                 {counts.unread > 0 && (
-                  <span className="icon-badge">
+                  <Badge className="icon-badge" variant="default">
                     {counts.unread > 99 ? "99+" : counts.unread}
-                  </span>
+                  </Badge>
                 )}
               </Link>
             )}
@@ -226,7 +243,7 @@ export default function Header() {
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                 </svg>
                 {counts.wishlist > 0 && (
-                  <span className="icon-badge">{counts.wishlist}</span>
+                  <Badge className="icon-badge">{counts.wishlist}</Badge>
                 )}
               </Link>
             )}
@@ -252,35 +269,33 @@ export default function Header() {
                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
               </svg>
               {counts.cart > 0 && (
-                <span className="icon-badge">
+                <Badge className="icon-badge">
                   {counts.cart > 99 ? "99+" : counts.cart}
-                </span>
+                </Badge>
               )}
             </Link>
           </div>
         </div>
       </header>
 
-      <div
-        className={`sidebar-overlay ${menuOpen ? "open" : ""}`}
-        onClick={() => setMenuOpen(false)}
-      />
-
-      <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
+      <DrawerContent side="left" className="sidebar" aria-describedby={undefined}>
+        <DrawerTitle className="sr-only">Store navigation</DrawerTitle>
         <div className="sidebar-top">
           <div className="sidebar-brand">
             <img src="/logo2.png" alt="Arduino Store" className="s-logo" />
             <span className="s-brand-name">Arduino Store</span>
           </div>
 
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             className="s-close-btn"
             onClick={() => setMenuOpen(false)}
             title="Close"
             aria-label="Close menu"
           >
             ×
-          </button>
+          </Button>
         </div>
 
         <div className="sidebar-auth">
@@ -301,14 +316,15 @@ export default function Header() {
                 My Account
               </Link>
 
-              <button
+              <Button
+                variant="outline"
                 type="button"
                 className="s-auth-btn"
                 onClick={logout}
                 disabled={loggingOut}
               >
                 {loggingOut ? "Logging Out..." : "Log Out"}
-              </button>
+              </Button>
             </>
           ) : (
             <>
@@ -478,7 +494,8 @@ export default function Header() {
             <span className="s-label">Returns</span>
           </Link>
         </nav>
-      </aside>
+      </DrawerContent>
+      </Drawer>
     </>
   );
 }

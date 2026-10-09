@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../../../lib/api";
+import { Button } from "../../../components/ui/8bit/button";
+import { Textarea } from "../../../components/ui/8bit/textarea";
+import { Label } from "../../../components/ui/8bit/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../../../components/ui/8bit/dialog";
+import { Alert, AlertDescription } from "../../../components/ui/8bit/alert";
 import {
   getProductImageUrl,
   handleProductImageError,

@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "../../../lib/api";
+import { Button } from "../../../components/ui/8bit/button";
+import { Input } from "../../../components/ui/8bit/input";
+import { Textarea } from "../../../components/ui/8bit/textarea";
+import { Label } from "../../../components/ui/8bit/label";
+import { Card } from "../../../components/ui/8bit/card";
+import { Alert, AlertDescription } from "../../../components/ui/8bit/alert";
 
 type UserProfile = {
   id: string;
@@ -167,7 +173,7 @@ export default function AccountProfilePage() {
           <div className="account-profile-error">
             <h1>My Profile</h1>
             <p>{profileError || "Unable to load your profile."}</p>
-            <Link href="/login">Log In</Link>
+            <Button asChild><Link href="/login">Log In</Link></Button>
           </div>
         </div>
       </main>
@@ -183,18 +189,18 @@ export default function AccountProfilePage() {
             <p>Manage your account and personal information.</p>
           </div>
 
-          <Link href="/account/orders">My Orders</Link>
+          <Button asChild><Link href="/account/orders">My Orders</Link></Button>
         </div>
 
-        <div className="account-profile-card">
+        <Card className="account-profile-card">
           <form onSubmit={handleProfileSubmit}>
             <div className="account-profile-section">
               <h2>Account Information</h2>
 
               <div className="account-profile-grid">
                 <div className="account-profile-field">
-                  <label htmlFor="email">Email</label>
-                  <input
+                  <Label htmlFor="email">Email</Label>
+                  <Input
                     id="email"
                     type="email"
                     value={profile.email || ""}
@@ -203,8 +209,8 @@ export default function AccountProfilePage() {
                 </div>
 
                 <div className="account-profile-field">
-                  <label htmlFor="username">Username</label>
-                  <input
+                  <Label htmlFor="username">Username</Label>
+                  <Input
                     id="username"
                     type="text"
                     value={username}
@@ -219,8 +225,8 @@ export default function AccountProfilePage() {
 
               <div className="account-profile-grid">
                 <div className="account-profile-field">
-                  <label htmlFor="first_name">First Name</label>
-                  <input
+                  <Label htmlFor="first_name">First Name</Label>
+                  <Input
                     id="first_name"
                     type="text"
                     value={firstName}
@@ -230,8 +236,8 @@ export default function AccountProfilePage() {
                 </div>
 
                 <div className="account-profile-field">
-                  <label htmlFor="middle_name">Middle Name</label>
-                  <input
+                  <Label htmlFor="middle_name">Middle Name</Label>
+                  <Input
                     id="middle_name"
                     type="text"
                     value={middleName}
@@ -240,8 +246,8 @@ export default function AccountProfilePage() {
                 </div>
 
                 <div className="account-profile-field">
-                  <label htmlFor="last_name">Last Name</label>
-                  <input
+                  <Label htmlFor="last_name">Last Name</Label>
+                  <Input
                     id="last_name"
                     type="text"
                     value={lastName}
@@ -251,8 +257,8 @@ export default function AccountProfilePage() {
                 </div>
 
                 <div className="account-profile-field">
-                  <label htmlFor="suffix">Suffix</label>
-                  <input
+                  <Label htmlFor="suffix">Suffix</Label>
+                  <Input
                     id="suffix"
                     type="text"
                     value={suffix}
@@ -261,8 +267,8 @@ export default function AccountProfilePage() {
                 </div>
 
                 <div className="account-profile-field">
-                  <label htmlFor="contact_number">Contact Number</label>
-                  <input
+                  <Label htmlFor="contact_number">Contact Number</Label>
+                  <Input
                     id="contact_number"
                     type="tel"
                     value={contactNumber}
@@ -271,8 +277,8 @@ export default function AccountProfilePage() {
                 </div>
 
                 <div className="account-profile-field account-profile-field-full">
-                  <label htmlFor="address">Address</label>
-                  <textarea
+                  <Label htmlFor="address">Address</Label>
+                  <Textarea
                     id="address"
                     value={address}
                     onChange={(event) => setAddress(event.target.value)}
@@ -283,28 +289,24 @@ export default function AccountProfilePage() {
             </div>
 
             {profileError && (
-              <div className="account-profile-message account-profile-message-error">
-                {profileError}
-              </div>
+              <Alert variant="destructive"><AlertDescription>{profileError}</AlertDescription></Alert>
             )}
 
             {profileSuccess && (
-              <div className="account-profile-message account-profile-message-success">
-                {profileSuccess}
-              </div>
+              <Alert><AlertDescription>{profileSuccess}</AlertDescription></Alert>
             )}
 
             <div className="account-profile-actions">
-              <button type="submit" disabled={savingProfile}>
+              <Button type="submit" disabled={savingProfile}>
                 {savingProfile ? "Saving..." : "Save Changes"}
-              </button>
+              </Button>
 
-              <Link href="/account/orders">View My Orders</Link>
+              <Button asChild variant="outline"><Link href="/account/orders">View My Orders</Link></Button>
             </div>
           </form>
-        </div>
+        </Card>
 
-        <div className="account-profile-card">
+        <Card className="account-profile-card">
           <form onSubmit={handlePasswordSubmit}>
             <div className="account-profile-section">
               <h2>Change Password</h2>
@@ -312,8 +314,8 @@ export default function AccountProfilePage() {
 
               <div className="account-profile-grid">
                 <div className="account-profile-field account-profile-field-full">
-                  <label htmlFor="current_password">Current Password</label>
-                  <input
+                  <Label htmlFor="current_password">Current Password</Label>
+                  <Input
                     id="current_password"
                     type="password"
                     value={currentPassword}
@@ -324,8 +326,8 @@ export default function AccountProfilePage() {
                 </div>
 
                 <div className="account-profile-field">
-                  <label htmlFor="new_password">New Password</label>
-                  <input
+                  <Label htmlFor="new_password">New Password</Label>
+                  <Input
                     id="new_password"
                     type="password"
                     value={newPassword}
@@ -337,8 +339,8 @@ export default function AccountProfilePage() {
                 </div>
 
                 <div className="account-profile-field">
-                  <label htmlFor="confirm_password">Confirm New Password</label>
-                  <input
+                  <Label htmlFor="confirm_password">Confirm New Password</Label>
+                  <Input
                     id="confirm_password"
                     type="password"
                     value={confirmPassword}
@@ -352,24 +354,20 @@ export default function AccountProfilePage() {
             </div>
 
             {passwordError && (
-              <div className="account-profile-message account-profile-message-error">
-                {passwordError}
-              </div>
+              <Alert variant="destructive"><AlertDescription>{passwordError}</AlertDescription></Alert>
             )}
 
             {passwordSuccess && (
-              <div className="account-profile-message account-profile-message-success">
-                {passwordSuccess}
-              </div>
+              <Alert><AlertDescription>{passwordSuccess}</AlertDescription></Alert>
             )}
 
             <div className="account-profile-actions">
-              <button type="submit" disabled={changingPassword}>
+              <Button type="submit" disabled={changingPassword}>
                 {changingPassword ? "Changing..." : "Change Password"}
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+        </Card>
       </div>
     </main>
   );

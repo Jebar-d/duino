@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { apiFetch } from "../../lib/api";
+import { Button } from "../../components/ui/8bit/button";
+import { Card, CardContent } from "../../components/ui/8bit/card";
+import { Alert, AlertDescription } from "../../components/ui/8bit/alert";
 
 type Status = "checking" | "success" | "error";
 

@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { CircleHelp, CreditCard, Mail, Package, RotateCcw, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../../components/ui/8bit/accordion";
+import { Button } from "../../components/ui/8bit/button";
 
 type FaqEntry = [question: string, answer: ReactNode];
 type FaqGroup = { title: string; icon: LucideIcon; entries: FaqEntry[] };
@@ -36,14 +38,16 @@ export default function FaqPage() {
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
         {groups.map((group) => <section key={group.title} style={{ marginTop: "1.5rem" }}>
           <h2 className="faq-group-heading" style={{ color: "var(--primary)", fontSize: ".9rem", textTransform: "uppercase", marginBottom: ".75rem" }}><group.icon aria-hidden="true" />{group.title}</h2>
-          {group.entries.map(([question, answer]) => <details key={question} className="account-card" style={{ marginBottom: ".6rem" }}>
-            <summary style={{ cursor: "pointer", fontWeight: 700 }}>{question}</summary>
-            <div style={{ color: "var(--muted)", lineHeight: 1.7, marginTop: ".75rem" }}>{answer}</div>
-          </details>)}
+          <Accordion type="single" collapsible>
+            {group.entries.map(([question, answer], index) => <AccordionItem key={question} value={`${group.title}-${index}`} className="account-card">
+              <AccordionTrigger>{question}</AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">{answer}</AccordionContent>
+            </AccordionItem>)}
+          </Accordion>
         </section>)}
       </div>
       <section className="account-card" style={{ textAlign: "center", margin: "2.5rem auto 0", maxWidth: 800 }}>
-        <h2 style={{ marginBottom: ".5rem" }}>Still have questions?</h2><p style={{ color: "var(--muted)", marginBottom: "1.25rem" }}>Our support team is ready to help you.</p><Link href="/contact" className="btn-primary link-with-icon"><Mail aria-hidden="true" /> Contact Support</Link>
+        <h2 style={{ marginBottom: ".5rem" }}>Still have questions?</h2><p style={{ color: "var(--muted-foreground)", marginBottom: "1.25rem" }}>Our support team is ready to help you.</p><Button asChild className="btn-primary link-with-icon"><Link href="/contact"><Mail aria-hidden="true" /> Contact Support</Link></Button>
       </section>
     </main>
   );
