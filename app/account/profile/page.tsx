@@ -189,7 +189,7 @@ export default function AccountProfilePage() {
             <p>Manage your account and personal information.</p>
           </div>
 
-          <Button asChild><Link href="/account/orders">My Orders</Link></Button>
+          <Button asChild className="text-background"><Link href="/account/orders">My Orders</Link></Button>
         </div>
 
         <Card className="account-profile-card">
@@ -301,7 +301,7 @@ export default function AccountProfilePage() {
                 {savingProfile ? "Saving..." : "Save Changes"}
               </Button>
 
-              <Button asChild variant="outline"><Link href="/account/orders">View My Orders</Link></Button>
+              <Button asChild variant="outline" className="text-foreground"><Link href="/account/orders">View My Orders</Link></Button>
             </div>
           </form>
         </Card>

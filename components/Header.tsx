@@ -84,6 +84,7 @@ export default function Header() {
         direction="left"
         open={menuOpen}
         onOpenChange={setMenuOpen}
+        modal={false}
         shouldScaleBackground={false}
       >
       <header id="nav">

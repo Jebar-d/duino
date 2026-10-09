@@ -87,8 +87,11 @@
   background: rgb(0 0 0 / 78%);
 }
 .store-modal {
-  position: relative;
-  width: min(620px, 100%);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 9501;
+  width: min(620px, calc(100vw - 32px));
   max-height: min(80vh, 720px);
   overflow: auto;
   padding: 28px;
@@ -564,6 +567,26 @@
 .store-modal-close {
   display: grid;
   place-items: center;
+}
+.signup-container > .auth-card {
+  width: min(720px, 100%);
+}
+.signup-form .form-group {
+  margin-bottom: 10px;
+}
+.signup-form .form-row {
+  column-gap: 16px;
+  row-gap: 2px;
+}
+.signup-form .form-row.two-col .form-group > label,
+.signup-form .form-row.three-col .form-group > label {
+  min-height: 3em;
+}
+@media (max-width: 600px) {
+  .signup-form .form-row.two-col .form-group > label,
+  .signup-form .form-row.three-col .form-group > label {
+    min-height: 0;
+  }
 }
 .store-modal-close svg {
   display: block;

@@ -173,13 +173,13 @@ export default function SignupPage() {
 
   return (
     <>
-      <main className="auth-container">
-        <Card className="auth-card" style={{ maxWidth: "600px" }}>
+      <main className="auth-container signup-container">
+        <Card className="auth-card" style={{ maxWidth: "720px" }}>
           <h1>Create Account</h1>
 
           <p className="auth-subtitle">Join Arduino Store today</p>
 
-          <form className="auth-form" onSubmit={handleSubmit}>
+          <form className="auth-form signup-form" onSubmit={handleSubmit}>
             <h3
               style={{
                 margin: "1.5rem 0 0.5rem",
@@ -569,4 +569,3 @@ export default function SignupPage() {
     </>
   );
 }
-

@@ -69,8 +69,8 @@
 }
 
 .account-tabs a.active {
-  color: #fff;
-  border-bottom-color: #fff;
+  color: var(--background);
+  border-bottom-color: var(--background);
 }
 
 /* ===== Shared account bits ===== */

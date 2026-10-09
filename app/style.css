@@ -828,172 +828,23 @@ header .logo {
 }
 
 /* =========================================================
-   FEATURE / HOT CAROUSEL
-========================================================= */
-
-.carousel-section {
-  overflow: hidden;
-
-  border: 1px solid #333;
-
-  background: #090909;
-
-  padding: 12px;
-
-  box-shadow: 8px 8px 0 #151515;
-}
-
-.carousel-track-wrap {
-  overflow: hidden;
-}
-
-.carousel-track {
-  display: flex;
-
-  transition: transform 0.45s ease;
-}
-
-.carousel-slide {
-  position: relative;
-
-  min-width: 100%;
-  min-height: 350px;
-
-  display: flex;
-  align-items: flex-end;
-
-  padding: 42px;
-
-  overflow: hidden;
-
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.95)),
-    #101010;
-
-  border: 1px solid #2a2a2a;
-}
-
-.carousel-slide::before {
-  content: "";
-
-  position: absolute;
-  inset: 0;
-
-  opacity: 0.06;
-
-  background-image:
-    linear-gradient(#fff 1px, transparent 1px),
-    linear-gradient(90deg, #fff 1px, transparent 1px);
-
-  background-size: 22px 22px;
-
-  pointer-events: none;
-}
-
-.carousel-slide-content {
-  position: relative;
-  z-index: 2;
-
-  max-width: 650px;
-}
-
-.carousel-slide-content > span {
-  display: block;
-
-  margin-bottom: 14px;
-
-  color: #888 !important;
-
-  font-family: var(--font-pixel);
-
-  font-size: 0.5rem !important;
-
-  letter-spacing: 0.04em !important;
-
-  text-transform: uppercase;
-}
-
-.carousel-slide h3 {
-  margin-bottom: 16px;
-
-  font-size: clamp(1.6rem, 4vw, 3rem);
-
-  text-transform: uppercase;
-}
-
-.carousel-slide p {
-  max-width: 600px;
-
-  margin-bottom: 22px;
-
-  color: #999;
-}
-
-.carousel-btn {
-  width: 46px;
-  height: 42px;
-
-  border: 1px solid #444;
-
-  background: #0c0c0c;
-
-  color: #fff;
-
-  font-size: 1rem;
-}
-
-.carousel-btn:hover {
-  background: #fff;
-  color: #000;
-}
-
-.carousel-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  padding: 12px 2px 0;
-}
-
-.carousel-dots {
-  display: flex;
-  gap: 5px;
-}
-
-.carousel-dot {
-  width: 28px;
-  height: 6px;
-
-  border: 1px solid #444;
-
-  background: #222;
-}
-
-.carousel-dot.active {
-  background: #fff;
-  border-color: #fff;
-}
-
-/* =========================================================
    CATEGORY GRID
 ========================================================= */
 
-.categories-grid,
-.why-grid {
+.categories-grid {
   display: grid;
 
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 
   gap: 12px;
 }
 
-.category-card,
-.why-card {
+.category-card {
   position: relative;
 
-  min-height: 190px;
+  min-height: 160px;
 
-  padding: 24px;
+  padding: 20px;
 
   overflow: hidden;
 
@@ -1006,15 +857,13 @@ header .logo {
     border-color 0.15s ease;
 }
 
-.category-card:hover,
-.why-card:hover {
+.category-card:hover {
   transform: translateY(-4px);
 
   border-color: #777;
 }
 
-.category-card::before,
-.why-card::before {
+.category-card::before {
   content: "";
 
   position: absolute;
@@ -1031,8 +880,7 @@ header .logo {
   background-size: 18px 18px;
 }
 
-.category-icon,
-.why-icon {
+.category-icon {
   position: relative;
 
   width: 48px;
@@ -1041,7 +889,7 @@ header .logo {
   display: grid;
   place-items: center;
 
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 
   border: 1px solid #444;
 
@@ -1050,8 +898,7 @@ header .logo {
   color: #fff;
 }
 
-.category-card h3,
-.why-card h3 {
+.category-card h3 {
   position: relative;
 
   font-size: 0.68rem;
@@ -1059,8 +906,7 @@ header .logo {
   text-transform: uppercase;
 }
 
-.category-card p,
-.why-card p {
+.category-card p {
   position: relative;
 
   margin-top: 12px;
@@ -3237,8 +3083,7 @@ footer {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .categories-grid,
-  .why-grid {
+  .categories-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -3499,7 +3344,6 @@ footer {
   .featured-grid,
   .product-grid,
   .categories-grid,
-  .why-grid,
   .wishlist-grid {
     grid-template-columns: 1fr;
   }
@@ -3519,16 +3363,6 @@ footer {
 
   .hero-board-scene {
     min-height: 330px;
-  }
-
-  .carousel-slide {
-    min-height: 300px;
-
-    padding: 26px;
-  }
-
-  .carousel-slide h3 {
-    font-size: 1.45rem;
   }
 
   .auth-card {

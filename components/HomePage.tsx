@@ -47,7 +47,6 @@ type Promo = {
 export default function HomePage() {
   const router = useRouter();
 
-  const [currentSlide, setCurrentSlide] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [promos, setPromos] = useState<Promo[]>([]);
@@ -97,28 +96,6 @@ export default function HomePage() {
 
     return () => clearTimeout(timer);
   }, []);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((previous) => (previous + 1) % 3);
-    }, 5000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  function goToSlide(index: number) {
-    if (index < 0) {
-      setCurrentSlide(2);
-      return;
-    }
-
-    if (index > 2) {
-      setCurrentSlide(0);
-      return;
-    }
-
-    setCurrentSlide(index);
-  }
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -286,8 +263,6 @@ export default function HomePage() {
       );
     });
   }, [products, productSearch]);
-
-  const carouselPromos = promos.slice(0, 2);
 
   async function toggleWishlist(productId: string) {
     if (authLoading) {
@@ -891,226 +866,6 @@ export default function HomePage() {
       </section>
 
       <main className="container">
-        <h2 className="section-title">What&apos;s Hot</h2>
-
-        <div className="carousel-section">
-          <div className="carousel-track-wrap">
-            <div
-              className="carousel-track"
-              style={{
-                transform: `translateX(-${currentSlide * 100}%)`,
-              }}
-            >
-              <div className="carousel-slide carousel-slide-1">
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background:
-                      "linear-gradient(135deg,rgba(255,255,255,0.05),rgba(0,0,0,0.7))",
-                    zIndex: 1,
-                  }}
-                />
-
-                <div className="carousel-slide-content">
-                  <span
-                    style={{
-                      color: "var(--primary)",
-                      fontSize: "0.8rem",
-                      letterSpacing: "0.15em",
-                      textTransform: "uppercase",
-                      fontWeight: 600,
-                      marginBottom: "0.5rem",
-                      display: "block",
-                    }}
-                  >
-                    New Arrival
-                  </span>
-
-                  <h3>Arduino UNO R4</h3>
-
-                  <p>
-                    The latest generation board with enhanced performance and
-                    built-in WiFi.
-                  </p>
-
-                  <Link
-                    href="/products"
-                    className="btn-hero-primary"
-                    style={{
-                      fontSize: "0.95rem",
-                      padding: "0.75rem 1.75rem",
-                      display: "inline-block",
-                    }}
-                  >
-                    Shop Now
-                  </Link>
-                </div>
-              </div>
-
-              <div className="carousel-slide carousel-slide-2">
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background:
-                      "linear-gradient(135deg,rgba(255,255,255,0.04),rgba(0,0,0,0.7))",
-                    zIndex: 1,
-                  }}
-                />
-
-                <div className="carousel-slide-content">
-                  <span
-                    style={{
-                      color: "var(--primary)",
-                      fontSize: "0.8rem",
-                      letterSpacing: "0.15em",
-                      textTransform: "uppercase",
-                      fontWeight: 600,
-                      marginBottom: "0.5rem",
-                      display: "block",
-                    }}
-                  >
-                    {carouselPromos[0]
-                      ? getPromoStatus(carouselPromos[0])
-                      : "Promotions"}
-                  </span>
-
-                  <h3>
-                    {carouselPromos[0]
-                      ? carouselPromos[0].is_free_shipping
-                        ? "Free Shipping Offer"
-                        : `${carouselPromos[0].discount_percent}% Off`
-                      : "Browse New Offers"}
-                  </h3>
-
-                  <p>
-                    {carouselPromos[0] ? (
-                      <>
-                        Use code{" "}
-                        <strong style={{ color: "var(--primary)" }}>
-                          {carouselPromos[0].code}
-                        </strong>
-                        {(carouselPromos[0].expiration_at || carouselPromos[0].valid_until)
-                          ? ` until ${new Date((carouselPromos[0].expiration_at || carouselPromos[0].valid_until || "").replace(" ", "T")).toLocaleDateString("en-PH")}.`
-                          : "."}
-                      </>
-                    ) : (
-                      "Browse the store for current offers."
-                    )}
-                  </p>
-
-                  <Link
-                    href="/products"
-                    className="btn-hero-primary"
-                    style={{
-                      fontSize: "0.95rem",
-                      padding: "0.75rem 1.75rem",
-                      display: "inline-block",
-                    }}
-                  >
-                    View Bundles
-                  </Link>
-                </div>
-              </div>
-
-              <div className="carousel-slide carousel-slide-3">
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background:
-                      "linear-gradient(135deg,rgba(255,255,255,0.03),rgba(0,0,0,0.7))",
-                    zIndex: 1,
-                  }}
-                />
-
-                <div className="carousel-slide-content">
-                  <span
-                    style={{
-                      color: "var(--primary)",
-                      fontSize: "0.8rem",
-                      letterSpacing: "0.15em",
-                      textTransform: "uppercase",
-                      fontWeight: 600,
-                      marginBottom: "0.5rem",
-                      display: "block",
-                    }}
-                  >
-                    {carouselPromos[1]
-                      ? getPromoStatus(carouselPromos[1])
-                      : "Promotions"}
-                  </span>
-
-                  <h3>
-                    {carouselPromos[1]
-                      ? carouselPromos[1].is_free_shipping
-                        ? "Free Shipping Offer"
-                        : `${carouselPromos[1].discount_percent}% Off`
-                      : "Find Your Next Project"}
-                  </h3>
-
-                  <p>
-                    {carouselPromos[1] ? (
-                      <>
-                        Use code{" "}
-                        <strong style={{ color: "var(--primary)" }}>
-                          {carouselPromos[1].code}
-                        </strong>
-                        {(carouselPromos[1].expiration_at || carouselPromos[1].valid_until)
-                          ? ` until ${new Date((carouselPromos[1].expiration_at || carouselPromos[1].valid_until || "").replace(" ", "T")).toLocaleDateString("en-PH")}.`
-                          : "."}
-                      </>
-                    ) : (
-                      "Explore Arduino boards, sensors, and accessories."
-                    )}
-                  </p>
-
-                  <Link
-                    href="/products"
-                    className="btn-hero-primary"
-                    style={{
-                      fontSize: "0.95rem",
-                      padding: "0.75rem 1.75rem",
-                      display: "inline-block",
-                    }}
-                  >
-                    Claim Offer
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="carousel-nav">
-            <Button
-              className="carousel-btn"
-              onClick={() => goToSlide(currentSlide - 1)}
-            >
-              &#8592;
-            </Button>
-
-            <div className="carousel-dots">
-              {[0, 1, 2].map((index) => (
-                <Button
-                  key={index}
-                  className={`carousel-dot ${
-                    currentSlide === index ? "active" : ""
-                  }`}
-                  onClick={() => goToSlide(index)}
-                />
-              ))}
-            </div>
-
-            <Button
-              className="carousel-btn"
-              onClick={() => goToSlide(currentSlide + 1)}
-            >
-              &#8594;
-            </Button>
-          </div>
-        </div>
-
         <h2 className="section-title">Shop by Category</h2>
 
         <div className="categories-grid">
@@ -1247,6 +1002,9 @@ export default function HomePage() {
           ) : (
             filteredProducts.map((product, index) => {
               const inWishlist = wishlist.has(product.id);
+              const isOutOfStock =
+                product.availability === "out_of_stock" ||
+                Number(product.stock) <= 0;
 
               return (
                 <Link
@@ -1255,7 +1013,7 @@ export default function HomePage() {
                   key={product.id}
                   style={{
                     animationDelay: `${index * 0.08}s`,
-                    opacity: product.stock === 0 || product.availability === "out_of_stock" ? 0.75 : 1,
+                    opacity: isOutOfStock ? 0.75 : 1,
                   }}
                 >
                   <div className="featured-image">
@@ -1270,7 +1028,7 @@ export default function HomePage() {
                       {product.model_url ? "3D" : "NEW"}
                     </div>
 
-                    {(product.stock === 0 || product.availability === "out_of_stock") && (
+                    {isOutOfStock && (
                       <div
                         style={{
                           position: "absolute",
@@ -1284,8 +1042,8 @@ export default function HomePage() {
                       >
                         <span
                           style={{
-                            background: "#FFFFFF",
-                            color: "#fff",
+                            background: "var(--foreground)",
+                            color: "var(--background)",
                             fontWeight: 800,
                             fontSize: "0.78rem",
                             padding: "0.35rem 0.85rem",
@@ -1309,7 +1067,7 @@ export default function HomePage() {
                       …
                     </p>
 
-                    {product.stock === 0 || product.availability === "out_of_stock" ? (
+                    {isOutOfStock ? (
                       <span
                         style={{
                           background: "rgba(255,255,255,0.05)",
@@ -1341,7 +1099,7 @@ export default function HomePage() {
 
                     <div className="featured-footer">
                       <span>
-                        {product.stock === 0 || product.availability === "out_of_stock" ? "View Product" : "View Details"}
+                        {isOutOfStock ? "View Product" : "View Details"}
                       </span>
 
                       <Button
@@ -1365,101 +1123,6 @@ export default function HomePage() {
               );
             })
           )}
-        </div>
-
-        <h2 className="section-title">Why Arduino Store?</h2>
-
-        <div className="why-grid">
-          <div className="why-card">
-            <div className="why-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </div>
-
-            <h3>Authentic Components</h3>
-
-            <p>
-              Every product is verified genuine. We source directly from trusted
-              suppliers — no counterfeits.
-            </p>
-          </div>
-
-          <div className="why-card">
-            <div className="why-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <rect x="1" y="3" width="15" height="13" rx="2" />
-                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
-                <circle cx="5.5" cy="18.5" r="2.5" />
-                <circle cx="18.5" cy="18.5" r="2.5" />
-              </svg>
-            </div>
-
-            <h3>Fast Nationwide Delivery</h3>
-
-            <p>
-              Orders shipped across the Philippines within 1–3 business days
-              with real-time tracking.
-            </p>
-          </div>
-
-          <div className="why-card">
-            <div className="why-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-            </div>
-
-            <h3>Technical Support</h3>
-
-            <p>
-              Our team of makers and engineers are here to help you with any
-              project challenges.
-            </p>
-          </div>
-
-          <div className="why-card">
-            <div className="why-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <polyline points="20 12 20 22 4 22 4 12" />
-                <rect x="2" y="7" width="20" height="5" />
-                <line x1="12" y1="22" x2="12" y2="7" />
-                <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
-                <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
-              </svg>
-            </div>
-
-            <h3>Rewards Program</h3>
-
-            <p>
-              Earn points on every purchase and redeem them for exclusive
-              discounts on future orders.
-            </p>
-          </div>
         </div>
 
         <h2 className="section-title">Active Promos &amp; Vouchers</h2>
