@@ -1,7 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch, API_BASE } from "../../lib/api";
+import { Activity, Banknote, BarChart3, Box, ChartNoAxesColumnIncreasing, KeyRound, LayoutDashboard, LogOut, Package, Percent, RotateCcw, Tags, TicketPercent, Truck, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 type User = {
   id: string;
@@ -162,18 +164,18 @@ type Tab =
 const tabs: {
   id: Tab;
   label: string;
-  icon: string;
+  icon: LucideIcon;
   section?: string;
 }[] = [
-  { id: "dashboard", label: "Dashboard", icon: "⊞", section: "Overview" },
-  { id: "analytics", label: "Analytics", icon: "📊" },
-  { id: "products", label: "Products", icon: "📦", section: "Catalog" },
-  { id: "categories", label: "Categories", icon: "🏷️" },
-  { id: "promos", label: "Promos", icon: "🎟️" },
-  { id: "orders", label: "Orders", icon: "🚚", section: "Manage" },
-  { id: "users", label: "Users", icon: "👥" },
-  { id: "refunds", label: "Refunds", icon: "↩️" },
-  { id: "admins", label: "Admin Users", icon: "🔑" },
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, section: "Overview" },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "products", label: "Products", icon: Package, section: "Catalog" },
+  { id: "categories", label: "Categories", icon: Tags },
+  { id: "promos", label: "Promos", icon: TicketPercent },
+  { id: "orders", label: "Orders", icon: Truck, section: "Manage" },
+  { id: "users", label: "Users", icon: Users },
+  { id: "refunds", label: "Refunds", icon: RotateCcw },
+  { id: "admins", label: "Admin Users", icon: KeyRound },
 ];
 
 function money(cents: number) {
@@ -1657,7 +1659,7 @@ export default function AdminPage() {
                   className={`adm-nav-link ${tab === item.id ? "active" : ""}`}
                   onClick={() => changeTab(item.id)}
                 >
-                  <span>{item.icon}</span>
+                  <span><item.icon size={18} aria-hidden="true" /></span>
                   <span>{item.label}</span>
                 </button>
               </div>
@@ -1681,7 +1683,7 @@ export default function AdminPage() {
             </div>
 
             <button onClick={signOut} className="adm-sidebar-signout">
-              <span>↪</span>
+              <LogOut size={16} aria-hidden="true" />
               Sign Out
             </button>
           </div>
@@ -1835,35 +1837,35 @@ function DashboardView({
 
       <div className="adm-stats-grid">
         <StatCard
-          icon="📦"
+          icon={Package}
           iconClass="ic-teal"
           value={stats.product_count}
           label="Products"
         />
 
         <StatCard
-          icon="🛒"
+          icon={Box}
           iconClass="ic-green"
           value={stats.order_count}
           label="Orders"
         />
 
         <StatCard
-          icon="👥"
+          icon={Users}
           iconClass="ic-orange"
           value={stats.user_count}
           label="Users"
         />
 
         <StatCard
-          icon="%"
+          icon={Percent}
           iconClass="ic-teal"
           value={stats.promo_count}
           label="Promos"
         />
 
         <StatCard
-          icon="₱"
+          icon={Banknote}
           iconClass="ic-green"
           value={moneyWhole(stats.revenue_cents)}
           label="Revenue (Paid)"
@@ -1916,28 +1918,28 @@ function DashboardView({
 
       <div className="adm-qgrid">
         <QuickCard
-          icon="📦"
+          icon={Package}
           title="Products"
           description="Add, edit, remove items from your catalog."
           onClick={() => onTab("products")}
         />
 
         <QuickCard
-          icon="🎟️"
+          icon={TicketPercent}
           title="Promos"
           description="Create discount codes and send notifications."
           onClick={() => onTab("promos")}
         />
 
         <QuickCard
-          icon="🚚"
+          icon={Truck}
           title="Orders"
           description="View and update order statuses."
           onClick={() => onTab("orders")}
         />
 
         <QuickCard
-          icon="👥"
+          icon={Users}
           title="Users"
           description="Manage user profiles and send messages."
           onClick={() => onTab("users")}
@@ -2069,7 +2071,7 @@ function AnalyticsView({
       </div>
 
       <div className="an-section">
-        <h4>📈 Monthly Revenue — Last 6 Months</h4>
+        <h4><ChartNoAxesColumnIncreasing size={16} aria-hidden="true" /> Monthly Revenue — Last 6 Months</h4>
 
         {analytics.monthly_revenue.length ? (
           analytics.monthly_revenue.map((month) => (
@@ -2106,7 +2108,7 @@ function AnalyticsView({
 
       <div className="an-two">
         <div className="an-section">
-          <h4>💳 Payment Methods</h4>
+          <h4><Activity size={16} aria-hidden="true" /> Payment Methods</h4>
 
           {analytics.payment_methods.length ? (
             analytics.payment_methods.map((payment) => {
@@ -2143,7 +2145,7 @@ function AnalyticsView({
         </div>
 
         <div className="an-section">
-          <h4>📦 Order Status Breakdown</h4>
+          <h4><Package size={16} aria-hidden="true" /> Order Status Breakdown</h4>
 
           {analytics.order_statuses.length ? (
             analytics.order_statuses.map((item) => {
@@ -2188,7 +2190,7 @@ function AnalyticsView({
       </div>
 
       <div className="an-section">
-        <h4>🏆 Top Products by Units Sold</h4>
+        <h4><Box size={16} aria-hidden="true" /> Top Products by Units Sold</h4>
 
         {analytics.top_products.length ? (
           analytics.top_products.map((product, index) => (
@@ -2737,14 +2739,15 @@ function StatCard({
   value,
   label,
 }: {
-  icon: string;
+  icon: LucideIcon;
   iconClass: string;
   value: string | number;
   label: string;
 }) {
+  const Icon = icon;
   return (
     <div className="adm-stat">
-      <div className={`adm-stat-icon ${iconClass}`}>{icon}</div>
+      <div className={`adm-stat-icon ${iconClass}`}><Icon aria-hidden="true" /></div>
 
       <div>
         <div className="adm-stat-val">{value}</div>
@@ -2778,14 +2781,15 @@ function QuickCard({
   description,
   onClick,
 }: {
-  icon: string;
+  icon: LucideIcon;
   title: string;
   description: string;
   onClick: () => void;
 }) {
+  const Icon = icon;
   return (
     <button className="adm-qc" onClick={onClick}>
-      <div className="adm-qc-icon">{icon}</div>
+      <div className="adm-qc-icon"><Icon aria-hidden="true" /></div>
       <h3>{title}</h3>
       <p>{description}</p>
       <div className="adm-qc-arr">Open →</div>
@@ -3790,3 +3794,5 @@ const adminStyles = `
   }
 }
 `;
+
+

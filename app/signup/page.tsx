@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../../lib/api";
 
 type RegisterResponse = {
@@ -31,6 +32,9 @@ export default function SignupPage() {
   const [suffix, setSuffix] = useState("");
   const [contact, setContact] = useState("");
   const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [province, setProvince] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [terms, setTerms] = useState(false);
   const [rules, setRules] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -38,13 +42,33 @@ export default function SignupPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const activeDialog = showTerms ? "terms" : showRules ? "rules" : null;
+
+  useEffect(() => {
+    if (!activeDialog) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowTerms(false);
+        setShowRules(false);
+      }
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [activeDialog]);
 
   const passwordLength = password.length >= 8;
   const passwordUpper = /[A-Z]/.test(password);
   const passwordNumber = /[0-9]/.test(password);
 
   function cleanName(value: string) {
-    return value.replace(/[^a-zA-ZÀ-ɏ '\-]/g, "");
+    return value.replace(/[^\p{L} '\-]/gu, "");
   }
 
   function handleContactChange(value: string) {
@@ -63,7 +87,7 @@ export default function SignupPage() {
       !firstName ||
       !lastName ||
       !contact ||
-      !address
+      !address || !city || !province || !postalCode
     ) {
       setError("Please fill in all required fields.");
       return;
@@ -115,6 +139,10 @@ export default function SignupPage() {
           suffix: suffix || null,
           contact_number: contact,
           address,
+          address_line: address,
+          city,
+          province,
+          postal_code: postalCode,
           terms_accepted: true,
           rules_accepted: true,
         }),
@@ -146,7 +174,7 @@ export default function SignupPage() {
             <h3
               style={{
                 margin: "1.5rem 0 0.5rem",
-                color: "var(--primary)",
+                color: "#fff",
               }}
             >
               Account Information
@@ -185,7 +213,7 @@ export default function SignupPage() {
                     onClick={() => setShowPassword((current) => !current)}
                     title="Show/hide password"
                   >
-                    {showPassword ? "🙈" : "👁️"}
+                    {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
                   </button>
                 </div>
 
@@ -195,7 +223,7 @@ export default function SignupPage() {
                       className={`pw-req ${passwordLength ? "met" : "unmet"}`}
                     >
                       <span className="pw-req-icon">
-                        {passwordLength ? "✓" : "○"}
+                        {passwordLength ? "âœ“" : "â—‹"}
                       </span>
                       At least 8 characters
                     </div>
@@ -204,7 +232,7 @@ export default function SignupPage() {
                       className={`pw-req ${passwordUpper ? "met" : "unmet"}`}
                     >
                       <span className="pw-req-icon">
-                        {passwordUpper ? "✓" : "○"}
+                        {passwordUpper ? "âœ“" : "â—‹"}
                       </span>
                       At least 1 uppercase letter
                     </div>
@@ -213,7 +241,7 @@ export default function SignupPage() {
                       className={`pw-req ${passwordNumber ? "met" : "unmet"}`}
                     >
                       <span className="pw-req-icon">
-                        {passwordNumber ? "✓" : "○"}
+                        {passwordNumber ? "âœ“" : "â—‹"}
                       </span>
                       At least 1 number
                     </div>
@@ -237,7 +265,7 @@ export default function SignupPage() {
             <h3
               style={{
                 margin: "1.5rem 0 0.5rem",
-                color: "var(--primary)",
+                color: "#fff",
               }}
             >
               Personal Information
@@ -316,7 +344,7 @@ export default function SignupPage() {
                     }}
                   >
                     {" "}
-                    (11–13 digits)
+                    (11â€“13 digits)
                   </small>
                 </label>
 
@@ -344,22 +372,28 @@ export default function SignupPage() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="address">Complete Address *</label>
+              <label htmlFor="address">Street / house no. / barangay *</label>
 
               <textarea
                 id="address"
                 rows={3}
-                placeholder="Street, City, Province, ZIP"
+                placeholder="Street, house number, barangay"
                 value={address}
                 onChange={(event) => setAddress(event.target.value)}
                 required
               />
             </div>
 
+            <div className="form-row three-col">
+              <div className="form-group"><label htmlFor="city">City / municipality *</label><input id="city" value={city} onChange={(event) => setCity(event.target.value)} required /></div>
+              <div className="form-group"><label htmlFor="province">Province *</label><input id="province" value={province} onChange={(event) => setProvince(event.target.value)} required /></div>
+              <div className="form-group"><label htmlFor="postalCode">Postal code (4 digits) *</label><input id="postalCode" inputMode="numeric" maxLength={4} pattern="[0-9]{4}" value={postalCode} onChange={(event) => setPostalCode(event.target.value.replace(/\D/g, "").slice(0, 4))} required /></div>
+            </div>
+
             <h3
               style={{
                 margin: "1.5rem 0 0.5rem",
-                color: "var(--primary)",
+                color: "#fff",
               }}
             >
               Agreements
@@ -382,7 +416,7 @@ export default function SignupPage() {
                       background: "none",
                       border: "none",
                       padding: 0,
-                      color: "var(--primary)",
+                      color: "#fff",
                       textDecoration: "underline",
                       cursor: "pointer",
                       font: "inherit",
@@ -412,7 +446,7 @@ export default function SignupPage() {
                       background: "none",
                       border: "none",
                       padding: 0,
-                      color: "var(--primary)",
+                      color: "#fff",
                       textDecoration: "underline",
                       cursor: "pointer",
                       font: "inherit",
@@ -443,66 +477,26 @@ export default function SignupPage() {
         </div>
       </main>
 
-      {showTerms && (
+      {activeDialog && (
         <div
-          className="modal"
-          style={{ display: "flex" }}
+          className="store-modal-backdrop"
           onClick={(event) => {
             if (event.target === event.currentTarget) {
               setShowTerms(false);
-            }
-          }}
-        >
-          <div className="modal-content">
-            <h2>Terms and Conditions</h2>
-
-            <p>1. You must provide accurate information.</p>
-
-            <p>2. You are responsible for maintaining your account security.</p>
-
-            <p>3. All sales are final unless product is defective.</p>
-
-            <p>4. We reserve the right to terminate accounts for violations.</p>
-
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => setShowTerms(false)}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showRules && (
-        <div
-          className="modal"
-          style={{ display: "flex" }}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
               setShowRules(false);
             }
           }}
         >
-          <div className="modal-content">
-            <h2>Rules and Regulations</h2>
-
-            <p>1. No reselling of products without permission.</p>
-
-            <p>2. Respect other users and staff.</p>
-
-            <p>3. No fraudulent transactions.</p>
-
-            <p>4. Follow all local laws regarding electronics.</p>
-
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => setShowRules(false)}
-            >
-              Close
-            </button>
+          <div className="store-modal" role="dialog" aria-modal="true" aria-labelledby="signup-dialog-title" tabIndex={-1} ref={dialogRef}>
+            <button type="button" className="store-modal-close" aria-label="Close dialog" onClick={() => { setShowTerms(false); setShowRules(false); }}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+            <h2 id="signup-dialog-title">{activeDialog === "terms" ? "Terms and Conditions" : "Rules and Regulations"}</h2>
+            <div className="store-modal-content">
+              {activeDialog === "terms" ? <><p>1. You must provide accurate information.</p><p>2. You are responsible for maintaining your account security.</p><p>3. All sales are final unless product is defective.</p><p>4. We reserve the right to terminate accounts for violations.</p></> : <><p>1. No reselling of products without permission.</p><p>2. Respect other users and staff.</p><p>3. No fraudulent transactions.</p><p>4. Follow all local laws regarding electronics.</p></>}
+            </div>
+            <div className="store-modal-actions">
+              <button type="button" className="auth-submit" onClick={() => { if (activeDialog === "terms") setTerms(true); else setRules(true); setShowTerms(false); setShowRules(false); }}>I agree</button>
+              <button type="button" className="auth-submit store-modal-secondary" onClick={() => { setShowTerms(false); setShowRules(false); }}>Close</button>
+            </div>
           </div>
         </div>
       )}
@@ -523,8 +517,8 @@ export default function SignupPage() {
           <div
             style={{
               background: "var(--surface)",
-              border: "1px solid rgba(0,255,136,0.3)",
-              borderRadius: "var(--radius)",
+              border: "2px solid #fff",
+              borderRadius: 0,
               padding: "3rem 2.5rem",
               textAlign: "center",
               maxWidth: "420px",
@@ -537,12 +531,12 @@ export default function SignupPage() {
                 marginBottom: "1rem",
               }}
             >
-              ✓
+              âœ“
             </div>
 
             <h2
               style={{
-                color: "var(--success)",
+                color: "#fff",
                 fontSize: "1.75rem",
                 marginBottom: "0.5rem",
               }}
@@ -574,3 +568,5 @@ export default function SignupPage() {
     </>
   );
 }
+
+

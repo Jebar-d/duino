@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { Check, Clock3, Info, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../lib/api";
@@ -417,10 +418,10 @@ export default function HomePage() {
           <div className={`toast ${toast.type}`}>
             <span className="toast-icon">
               {toast.type === "success"
-                ? "✓"
+                ? <Check size={16} aria-hidden="true" />
                 : toast.type === "error"
-                  ? "✕"
-                  : "ℹ"}
+                  ? <X size={16} aria-hidden="true" />
+                  : <Info size={16} aria-hidden="true" />}
             </span>
 
             <div className="toast-title">{toast.title}</div>
@@ -436,7 +437,7 @@ export default function HomePage() {
             className="promo-popup-close"
             onClick={() => setPromoOpen(false)}
           >
-            ×
+            <X size={18} aria-hidden="true" />
           </button>
 
           <div className="promo-popup-badge">Limited Time Offer</div>
@@ -447,7 +448,7 @@ export default function HomePage() {
 
           <div className="promo-timer">
             {promoSeconds > 0
-              ? `⏰ Expires in ${formatCountdown(promoSeconds)}`
+              ? <><Clock3 size={15} aria-hidden="true" /> Expires in {formatCountdown(promoSeconds)}</>
               : "Offer expired"}
           </div>
 

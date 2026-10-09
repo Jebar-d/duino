@@ -21,6 +21,10 @@ export type SessionUser = {
   suffix: string | null;
   contact_number: string | null;
   address: string | null;
+  extra_addresses?: Partial<{
+    first_name: string; middle_name: string; last_name: string; suffix: string;
+    address_line: string; city: string; province: string; postal_code: string; contact_number: string;
+  }>[];
   role?: string;
   email_verified?: boolean;
   created_at?: string;

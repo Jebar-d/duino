@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
+import { useSession } from "../../components/SessionProvider";
+
+type SavedAddress = {
+  first_name?: string; middle_name?: string; last_name?: string; suffix?: string;
+  address_line?: string; city?: string; province?: string; postal_code?: string; contact_number?: string;
+};
 
 type CartProduct = {
   id: string;
@@ -57,6 +63,8 @@ type OrderResponse = {
     subtotal_cents: number;
     shipping_cents: number;
     total_cents: number;
+    discount_cents?: number;
+    promo_code?: string | null;
     shipping_method: string;
     payment_method: string;
   };
@@ -67,6 +75,7 @@ type CheckoutResponse = { checkout_url?: string; already_paid?: boolean };
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { user, loading: sessionLoading } = useSession();
 
   const [items, setItems] = useState<CartItem[]>([]);
   const [subtotalCents, setSubtotalCents] = useState(0);
@@ -83,6 +92,11 @@ export default function CheckoutPage() {
   const [postalCode, setPostalCode] = useState("");
   const [shippingMethod, setShippingMethod] = useState("standard");
   const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState("different");
+  const [saveAddress, setSaveAddress] = useState(false);
+  const shippingTouched = useRef(false);
+  const prefetchedAddress = useRef(false);
   const [onlineEnabled, setOnlineEnabled] = useState(true);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [notes, setNotes] = useState("");
@@ -122,9 +136,82 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
+    if (sessionLoading || prefetchedAddress.current) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      Promise.allSettled([
+        apiFetch<{ addresses: SavedAddress[] }>("/auth/user/addresses.php"),
+      ]).then(([addressResult]) => {
+        if (!active) return;
+        const addresses = addressResult.status === "fulfilled" ? addressResult.value.addresses || [] : [];
+        const fromProfile = user?.extra_addresses || [];
+        const mergedAddresses = addresses.length ? addresses : fromProfile;
+        setSavedAddresses(mergedAddresses);
+        if (shippingTouched.current || prefetchedAddress.current) return;
+        const first = mergedAddresses[0];
+        if (first) {
+          setFirstName(first.first_name || user?.first_name || "");
+          setLastName(first.last_name || user?.last_name || "");
+          setContactNumber(first.contact_number || user?.contact_number || "");
+          setAddressLine(first.address_line || "");
+          setCity(first.city || "");
+          setProvince(first.province || "");
+          setPostalCode(first.postal_code || "");
+          setSelectedAddress("0");
+          setSaveAddress(false);
+        } else {
+          setFirstName(user?.first_name || "");
+          setLastName(user?.last_name || "");
+          setContactNumber(user?.contact_number || "");
+          setAddressLine(user?.address || "");
+          setSaveAddress(Boolean(user?.address));
+        }
+        prefetchedAddress.current = true;
+      });
+    }, 0);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [sessionLoading, user]);
+
+  function updateShippingField(field: "firstName" | "lastName" | "contactNumber" | "addressLine" | "city" | "province" | "postalCode", value: string) {
+    shippingTouched.current = true;
+    setSelectedAddress("different");
+    const next = { firstName, lastName, contactNumber, addressLine, city, province, postalCode, [field]: value };
+    if (field === "firstName") setFirstName(value);
+    if (field === "lastName") setLastName(value);
+    if (field === "contactNumber") setContactNumber(value);
+    if (field === "addressLine") setAddressLine(value);
+    if (field === "city") setCity(value);
+    if (field === "province") setProvince(value);
+    if (field === "postalCode") setPostalCode(value);
+    setSaveAddress(!savedAddresses.some((address) => address.address_line === next.addressLine && address.city === next.city && address.province === next.province && address.postal_code === next.postalCode));
+  }
+
+  function selectShippingAddress(value: string) {
+    setSelectedAddress(value);
+    shippingTouched.current = true;
+    if (value === "different") {
+      setSaveAddress(!savedAddresses.some((address) => address.address_line === addressLine && address.city === city && address.province === province && address.postal_code === postalCode));
+      return;
+    }
+    const address = savedAddresses[Number(value)];
+    if (!address) return;
+    setFirstName(address.first_name || "");
+    setLastName(address.last_name || "");
+    setContactNumber(address.contact_number || "");
+    setAddressLine(address.address_line || "");
+    setCity(address.city || "");
+    setProvince(address.province || "");
+    setPostalCode(address.postal_code || "");
+    setSaveAddress(false);
+  }
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       apiFetch<PaymentMethodsResponse>("/payment/methods.php")
-        .then((data) => setOnlineEnabled(data.online_enabled))
+        .then((data) => {
+          setOnlineEnabled(data.online_enabled);
+          if (!data.online_enabled) setPaymentMethod("cod");
+        })
         .catch(() => undefined);
     }, 0);
     return () => window.clearTimeout(timer);
@@ -231,6 +318,28 @@ export default function CheckoutPage() {
         }),
       });
 
+      if (saveAddress) {
+        try {
+          await apiFetch("/auth/user/addresses.php", {
+            method: "POST",
+            body: JSON.stringify({
+              action: "add",
+              address: {
+                first_name: firstName.trim(),
+                last_name: lastName.trim(),
+                contact_number: contactNumber.trim(),
+                address_line: addressLine.trim(),
+                city: city.trim(),
+                province: province.trim(),
+                postal_code: postalCode.trim(),
+              },
+            }),
+          });
+        } catch {
+          // Address saving is optional and must not block the order.
+        }
+      }
+
       sessionStorage.setItem("last_order", JSON.stringify(data.order));
       const orderUrl = `/order-complete?order=${encodeURIComponent(data.order.id)}`;
       if (paymentMethod === "cod") {
@@ -302,6 +411,20 @@ export default function CheckoutPage() {
             <section className="checkout-card">
               <h2>Shipping Information</h2>
 
+              <div className="checkout-address-picker" role="radiogroup" aria-label="Deliver to">
+                <strong>Deliver to</strong>
+                {savedAddresses.map((address, index) => (
+                  <label key={`${address.address_line}-${index}`}>
+                    <input type="radio" name="savedAddress" checked={selectedAddress === String(index)} onChange={() => selectShippingAddress(String(index))} />
+                    <strong>{[address.first_name, address.last_name].filter(Boolean).join(" ") || "Saved address"}</strong>
+                    <p>{address.address_line}</p>
+                    <p>{[address.city, address.province, address.postal_code].filter(Boolean).join(", ")}</p>
+                    <p>{address.contact_number}</p>
+                  </label>
+                ))}
+                <label><input type="radio" name="savedAddress" checked={selectedAddress === "different"} onChange={() => selectShippingAddress("different")} />Enter a different address</label>
+              </div>
+
               <div className="checkout-field-row">
                 <div className="checkout-field">
                   <label htmlFor="firstName">First Name</label>
@@ -310,7 +433,7 @@ export default function CheckoutPage() {
                     id="firstName"
                     type="text"
                     value={firstName}
-                    onChange={(event) => setFirstName(event.target.value)}
+                    onChange={(event) => updateShippingField("firstName", event.target.value)}
                     required
                   />
                 </div>
@@ -322,7 +445,7 @@ export default function CheckoutPage() {
                     id="lastName"
                     type="text"
                     value={lastName}
-                    onChange={(event) => setLastName(event.target.value)}
+                    onChange={(event) => updateShippingField("lastName", event.target.value)}
                     required
                   />
                 </div>
@@ -335,22 +458,29 @@ export default function CheckoutPage() {
                   id="contactNumber"
                   type="text"
                   value={contactNumber}
-                  onChange={(event) => setContactNumber(event.target.value)}
+                  onChange={(event) => updateShippingField("contactNumber", event.target.value)}
                   required
                 />
               </div>
 
               <div className="checkout-field">
-                <label htmlFor="addressLine">Address</label>
+                  <label htmlFor="addressLine">Street / house no. / barangay</label>
 
                 <input
                   id="addressLine"
                   type="text"
                   value={addressLine}
-                  onChange={(event) => setAddressLine(event.target.value)}
+                  onChange={(event) => updateShippingField("addressLine", event.target.value)}
                   required
                 />
               </div>
+
+              <div className="checkout-field-row">
+                <div className="checkout-field"><label htmlFor="city">City / municipality</label><input id="city" value={city} onChange={(event) => updateShippingField("city", event.target.value)} required /></div>
+                <div className="checkout-field"><label htmlFor="province">Province</label><input id="province" value={province} onChange={(event) => updateShippingField("province", event.target.value)} required /></div>
+              </div>
+              <div className="checkout-field"><label htmlFor="postalCode">Postal code</label><input id="postalCode" inputMode="numeric" value={postalCode} onChange={(event) => updateShippingField("postalCode", event.target.value)} required /></div>
+              <label className="checkout-save-address"><input type="checkbox" checked={saveAddress} onChange={(event) => setSaveAddress(event.target.checked)} />Save this address to my account</label>
 
               <div className="checkout-field-row">
                 <div className="checkout-field">

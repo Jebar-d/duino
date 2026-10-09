@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiFetch } from "../../lib/api";
+import { Badge } from "../../components/ui/8bit/badge";
 
 type OrderData = {
   id: string;
@@ -15,6 +16,9 @@ type OrderData = {
   payment_status?: string;
   status?: string;
   cancelled_at?: string | null;
+  discount_cents?: number;
+  promo_code?: string | null;
+  items?: { id: string; product_name?: string | null; product_img?: string | null; qty: number; subtotal_cents?: number; price_cents?: number }[];
 };
 type PaymentStatusResponse = {
   order_status: string;
@@ -32,6 +36,7 @@ function OrderCompleteContent() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatusResponse | null>(null);
   const [error, setError] = useState("");
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const loadPaymentStatus = useCallback(async (id: string) => {
     let status = await apiFetch<PaymentStatusResponse>(`/payment/status.php?order_id=${encodeURIComponent(id)}`);
@@ -113,22 +118,82 @@ function OrderCompleteContent() {
   if (loading) return <main className="order-complete-page"><div className="order-complete-container"><div className="order-complete-card"><h1>Loading order...</h1></div></div></main>;
   if (!order) return <main className="order-complete-page"><div className="order-complete-container"><div className="order-complete-card"><h1>Order Complete</h1><p>{error || "We could not find the order information for this page."}</p><div className="order-complete-actions"><Link href="/products">Continue Shopping</Link><Link href="/account">Go to Account</Link></div></div></div></main>;
 
-  const title = online ? cancelled ? "Payment expired, order cancelled" : paid ? "Payment received" : "Waiting for payment" : "Order placed successfully!";
-  return <main className="order-complete-page"><div className="order-complete-container"><div className="order-complete-card">
-    <div className="order-success-icon">{paid || !online ? "✓" : "…"}</div>
-    <h1>{title}</h1>
-    {!online ? <p className="order-success-message">Thank you for your order. Your order has been received and is now being processed.</p> : !cancelled && !paid ? <p className="order-success-message">Complete your payment to continue processing this order.</p> : null}
-    <div className="order-number"><span>Order Number</span><strong>{order.id}</strong></div>
-    <div className="order-details">
-      {storedOrder && <><div className="order-detail-row"><span>Subtotal</span><strong>{formatPrice(storedOrder.subtotal_cents)}</strong></div><div className="order-detail-row"><span>Shipping</span><strong>{storedOrder.shipping_cents === 0 ? "Free" : formatPrice(storedOrder.shipping_cents)}</strong></div></>}
-      <div className="order-detail-row order-total-row"><span>Total</span><strong>{formatPrice(order.total_cents)}</strong></div>
-    </div>
-    <div className="order-information"><div><span>Payment Method</span><strong>{order.payment_method === "cod" ? "Cash on Delivery" : order.payment_method.toUpperCase()}</strong></div><div><span>Shipping Method</span><strong>{order.shipping_method === "standard" ? "Standard Shipping" : order.shipping_method}</strong></div><div><span>Status</span><strong>{online ? cancelled ? "Expired" : paid ? "Paid" : "Unpaid" : "Pending"}</strong></div></div>
-    {error && <p className="order-success-message">{error}</p>}
-    <div className="order-complete-actions">{online && !cancelled && !paid ? <><button type="button" onClick={startCheckout} disabled={isRedirecting}>{isRedirecting ? "Redirecting to payment..." : "Pay now"}</button><button type="button" onClick={checkStatus}>Check payment status</button></> : <Link href="/products">Continue Shopping</Link>}{!cancelled && <Link href="/account">View Account</Link>}</div>
-  </div></div></main>;
+  const title = online ? cancelled ? "Order cancelled" : paid ? "Payment received" : "Awaiting payment" : "Order placed";
+  const message = cancelled
+    ? "This payment expired and the order was cancelled."
+    : paid
+      ? "Thanks, your payment has been confirmed."
+      : online
+        ? "Your order is saved. Complete payment to continue."
+        : "Thanks for your order. We’ll prepare it for delivery.";
+  const statusLabel = cancelled ? "Expired" : paid ? "Paid" : online ? "Unpaid" : "COD received";
+  const receiptOrder = storedOrder;
+  const discount = receiptOrder?.discount_cents || order.discount_cents || 0;
+  const orderItems = order.items || [];
+  const copyOrderNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(order.id);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setError("Unable to copy the order number.");
+    }
+  };
+
+  return (
+    <main className="order-complete-page">
+      <div className="order-complete-container">
+        <div className="order-complete-card">
+          {paid && <div className="receipt-confetti" aria-hidden="true"><i /><i /><i /><i /><i /></div>}
+          <div className="order-success-icon" aria-hidden="true">{cancelled ? "×" : paid || !online ? "✓" : "…"}</div>
+          <h1>{title}</h1>
+          <p className="order-success-message">{message}</p>
+
+          <div className="order-number">
+            <div><span>Order Number</span><strong>{order.id}</strong></div>
+            <button type="button" onClick={copyOrderNumber}>{copied ? "Copied" : "Copy"}</button>
+          </div>
+
+          <section className="receipt-block" aria-label="Order receipt">
+            {receiptOrder && <>
+              <div className="receipt-row"><span>Subtotal</span><strong>{formatPrice(receiptOrder.subtotal_cents)}</strong></div>
+              <div className="receipt-row"><span>Shipping</span><strong>{receiptOrder.shipping_cents === 0 ? "Free" : formatPrice(receiptOrder.shipping_cents)}</strong></div>
+              <hr className="receipt-separator" />
+            </>}
+            {discount > 0 && <div className="receipt-row"><span>Discount{receiptOrder?.promo_code || order.promo_code ? ` (${receiptOrder?.promo_code || order.promo_code})` : ""}</span><strong>−{formatPrice(discount)}</strong></div>}
+            <div className="receipt-row total"><span>Total</span><strong>{formatPrice(order.total_cents)}</strong></div>
+            <hr className="receipt-separator" />
+            <div className="order-information">
+              <div><span>Payment method</span><strong>{order.payment_method === "cod" ? "Cash on Delivery" : order.payment_method.toUpperCase()}</strong></div>
+              <div><span>Shipping method</span><strong>{order.shipping_method === "standard" ? "Standard Shipping" : order.shipping_method}</strong></div>
+              <div><span>Payment status</span><Badge className="receipt-status" font="normal" variant="outline">{statusLabel}</Badge></div>
+            </div>
+          </section>
+
+          {orderItems.length > 0 && <div className="receipt-items" aria-label="Order items">
+            {orderItems.map((item) => <div className="receipt-item" key={item.id}>
+              <img src={item.product_img || "/product.png"} alt={item.product_name || ""} />
+              <span>{item.product_name || "Product"} × {item.qty}</span>
+              <strong>{formatPrice(item.subtotal_cents ?? (item.price_cents || 0) * item.qty)}</strong>
+            </div>)}
+          </div>}
+
+          {error && <p className="order-success-message" role="alert">{error}</p>}
+          {online && !cancelled && !paid && <div className="order-complete-actions">
+            <button type="button" onClick={startCheckout} disabled={isRedirecting}>{isRedirecting ? "Redirecting to payment…" : "Pay now"}</button>
+            <button type="button" onClick={checkStatus}>Check payment status</button>
+          </div>}
+          <div className="order-complete-actions">
+            <Link href="/products">Continue shopping</Link>
+            <Link href={`/account/orders/${encodeURIComponent(order.id)}`}>View order</Link>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
 }
 
 export default function OrderCompletePage() {
   return <Suspense fallback={<main className="order-complete-page"><div className="order-complete-container"><div className="order-complete-card"><h1>Loading order...</h1></div></div></main>}><OrderCompleteContent /></Suspense>;
 }
+

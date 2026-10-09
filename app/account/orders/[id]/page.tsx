@@ -36,6 +36,7 @@ type ShippingAddressForm = {
   province: string;
   postal_code: string;
 };
+type SavedAddress = Partial<ShippingAddressForm> & { middle_name?: string; suffix?: string };
 
 type Order = {
   id: string;
@@ -86,6 +87,8 @@ export default function OrderDetailsPage() {
     province: "",
     postal_code: "",
   });
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState("different");
   const [isEditingItems, setIsEditingItems] = useState(false);
   const [isSavingItems, setIsSavingItems] = useState(false);
   const [itemsError, setItemsError] = useState("");
@@ -191,6 +194,10 @@ export default function OrderDetailsPage() {
     });
     setAddressError("");
     setIsEditingAddress(true);
+    setSelectedAddress("different");
+    apiFetch<{ addresses: SavedAddress[] }>("/auth/user/addresses.php")
+      .then((data) => setSavedAddresses(data.addresses || []))
+      .catch(() => setSavedAddresses([]));
   };
 
   const saveShippingAddress = async (
@@ -225,9 +232,7 @@ export default function OrderDetailsPage() {
           `/orders/get.php?id=${encodeURIComponent(order.id)}`,
         ).then((data) => setOrder(data.order)).catch(() => undefined);
       }
-      setAddressError(
-        message,
-      );
+      setAddressError(message.toLowerCase() === "failed to fetch" ? "Couldn't save your changes. Check your connection and try again." : message);
     } finally {
       setIsSavingAddress(false);
     }
@@ -273,6 +278,8 @@ export default function OrderDetailsPage() {
       setItemsDraft(
         itemsDraft.filter((draft) => draft.key !== itemPendingRemoval.key),
       );
+    } else {
+      setItemsError("An order must contain at least one product. Cancel the order instead.");
     }
     setItemPendingRemoval(null);
   };
@@ -302,6 +309,8 @@ export default function OrderDetailsPage() {
         },
       );
       setOrder(data.order);
+      const refreshed = await apiFetch<{ order: Order }>(`/orders/get.php?id=${encodeURIComponent(order.id)}`);
+      setOrder(refreshed.order);
       setIsEditingItems(false);
     } catch (saveError) {
       const message =
@@ -314,9 +323,7 @@ export default function OrderDetailsPage() {
           `/orders/get.php?id=${encodeURIComponent(order.id)}`,
         ).then((data) => setOrder(data.order)).catch(() => undefined);
       }
-      setItemsError(
-        message,
-      );
+      setItemsError(message.toLowerCase() === "failed to fetch" ? "Couldn't save your changes. Check your connection and try again." : message);
     } finally {
       setIsSavingItems(false);
     }
@@ -519,6 +526,19 @@ export default function OrderDetailsPage() {
                 className="account-order-address-form"
                 onSubmit={saveShippingAddress}
               >
+                <div className="checkout-address-picker" role="radiogroup" aria-label="Deliver to">
+                  <strong>Deliver to</strong>
+                  {savedAddresses.map((address, index) => (
+                    <label key={`${address.address_line}-${index}`}>
+                      <input type="radio" name="orderSavedAddress" checked={selectedAddress === String(index)} onChange={() => { setSelectedAddress(String(index)); setAddressForm((current) => ({ ...current, first_name: address.first_name || current.first_name, last_name: address.last_name || current.last_name, contact_number: address.contact_number || current.contact_number, address_line: address.address_line || "", city: address.city || "", province: address.province || "", postal_code: address.postal_code || "" })); }} />
+                      <strong>{[address.first_name, address.last_name].filter(Boolean).join(" ") || "Saved address"}</strong>
+                      <p>{address.address_line}</p>
+                      <p>{[address.city, address.province, address.postal_code].filter(Boolean).join(", ")}</p>
+                      <p>{address.contact_number}</p>
+                    </label>
+                  ))}
+                  <label><input type="radio" name="orderSavedAddress" checked={selectedAddress === "different"} onChange={() => setSelectedAddress("different")} />Enter a different address</label>
+                </div>
                 <label>
                   First name
                   <input

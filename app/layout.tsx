@@ -5,6 +5,7 @@ import { SessionProvider } from "../components/SessionProvider";
 import "./globals.css";
 import "./style.css";
 import "./extras.css";
+import "./store-ui.css";
 
 export const metadata: Metadata = {
   title: "Arduino Store – Premium Components for Makers",

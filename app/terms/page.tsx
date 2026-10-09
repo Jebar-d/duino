@@ -1,8 +1,9 @@
-import Link from "next/link";
+﻿import Link from "next/link";
+import { ArrowLeft, ScrollText } from "lucide-react";
 
 export default function TermsPage() {
   return <main className="container"><article className="account-card" style={{ maxWidth: 900, margin: "0 auto", lineHeight: 1.8 }}>
-    <h1>📜 Terms &amp; Conditions</h1><p style={{ color: "var(--muted)", margin: ".5rem 0 1.5rem" }}>Last updated: January 1, 2025</p>
+    <h1 className="page-title-with-icon"><ScrollText aria-hidden="true" /> Terms &amp; Conditions</h1><p style={{ color: "var(--muted)", margin: ".5rem 0 1.5rem" }}>Last updated: January 1, 2025</p>
     <p>Welcome to Arduino Store. By accessing and using our website and services, you agree to be bound by these Terms and Conditions. Please read them carefully before making any purchase.</p>
     <h2>1. Acceptance of Terms</h2><p>By using the Arduino Store website, you confirm that you are at least 18 years old (or have parental consent) and agree to these terms. We reserve the right to update these terms at any time without prior notice.</p>
     <h2>2. Products and Pricing</h2><p>All product prices are listed in Philippine Pesos (₱) and include VAT where applicable. We reserve the right to change prices at any time. In case of a pricing error, we will notify you before processing your order.</p>
@@ -15,6 +16,7 @@ export default function TermsPage() {
     <h2>8. Limitation of Liability</h2><p>Arduino Store shall not be liable for any indirect, incidental, or consequential damages arising from the use of our products or services. Our maximum liability is limited to the amount paid for the specific product in question.</p>
     <h2>9. Privacy</h2><p>Your use of our website is also governed by our Privacy Policy. We collect and process personal data in accordance with the Data Privacy Act of 2012 (Republic Act No. 10173).</p>
     <h2>10. Contact</h2><p>For questions about these terms, contact us at <a href="mailto:legal@arduinostore.ph" style={{ color: "var(--primary)" }}>legal@arduinostore.ph</a> or visit our <Link href="/contact" style={{ color: "var(--primary)" }}>Contact Page</Link>.</p>
-    <div style={{ marginTop: "2.5rem", textAlign: "center" }}><Link href="/" className="btn-primary">← Back to Store</Link></div>
+    <div style={{ marginTop: "2.5rem", textAlign: "center" }}><Link href="/" className="btn-primary link-with-icon"><ArrowLeft aria-hidden="true" /> Back to Store</Link></div>
   </article></main>;
 }
+

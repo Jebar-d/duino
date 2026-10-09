@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Heart, Minus, Plus } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -613,8 +614,9 @@ export default function ProductDetailPage() {
                     type="button"
                     onClick={decreaseQuantity}
                     disabled={quantity <= 1}
+                    aria-label="Decrease quantity"
                   >
-                    −
+                    <Minus size={17} strokeWidth={2.5} aria-hidden="true" />
                   </button>
 
                   <span>{quantity}</span>
@@ -623,8 +625,9 @@ export default function ProductDetailPage() {
                     type="button"
                     onClick={increaseQuantity}
                     disabled={quantity >= activeStock}
+                    aria-label="Increase quantity"
                   >
-                    +
+                    <Plus size={17} strokeWidth={2.5} aria-hidden="true" />
                   </button>
                 </div>
 
@@ -648,8 +651,8 @@ export default function ProductDetailPage() {
               {wishlistLoading
                 ? "Saving..."
                 : isWishlisted
-                  ? "♥ Saved"
-                  : "♡ Save"}
+                  ? <><Heart size={16} fill="currentColor" aria-hidden="true" /> Saved</>
+                  : <><Heart size={16} aria-hidden="true" /> Save</>}
             </button>
 
             {cartMessage && (

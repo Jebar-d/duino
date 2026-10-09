@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
+import { Bell, Heart, ShoppingCart, UserRound } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { useSession } from "./SessionProvider";
@@ -379,7 +380,7 @@ export default function Header() {
             className="s-item"
             onClick={() => setMenuOpen(false)}
           >
-            <span className="s-icon">👤</span>
+            <span className="s-icon"><UserRound size={18} aria-hidden="true" /></span>
             <span className="s-label">Account</span>
           </Link>
 
@@ -388,7 +389,7 @@ export default function Header() {
             className="s-item"
             onClick={() => setMenuOpen(false)}
           >
-            <span className="s-icon">🛒</span>
+            <span className="s-icon"><ShoppingCart size={18} aria-hidden="true" /></span>
             <span className="s-label">Cart</span>
             {counts.cart > 0 && <span className="s-count">{counts.cart}</span>}
           </Link>
@@ -398,7 +399,7 @@ export default function Header() {
             className="s-item"
             onClick={() => setMenuOpen(false)}
           >
-            <span className="s-icon">♡</span>
+            <span className="s-icon"><Heart size={18} aria-hidden="true" /></span>
             <span className="s-label">Wishlist</span>
             {counts.wishlist > 0 && (
               <span className="s-count">{counts.wishlist}</span>
@@ -411,7 +412,7 @@ export default function Header() {
               className="s-item"
               onClick={() => setMenuOpen(false)}
             >
-              <span className="s-icon">🔔</span>
+              <span className="s-icon"><Bell size={18} aria-hidden="true" /></span>
               <span className="s-label">Notifications</span>
               {counts.unread > 0 && (
                 <span className="s-count">{counts.unread}</span>
@@ -481,3 +482,4 @@ export default function Header() {
     </>
   );
 }
+

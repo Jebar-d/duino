@@ -20,6 +20,7 @@ type Product = {
 type CartItem = {
   id: string;
   product_id: string;
+  variant_id?: string | null;
   qty: number;
   product: Product;
   subtotal_cents: number;
@@ -69,12 +70,12 @@ export default function CartPage() {
     };
   }, []);
 
-  async function updateQuantity(productId: string, quantity: number) {
+  async function updateQuantity(itemId: string, quantity: number) {
     if (quantity < 1) {
       return;
     }
 
-    const item = items.find((cartItem) => cartItem.product_id === productId);
+    const item = items.find((cartItem) => cartItem.id === itemId);
 
     if (!item) {
       return;
@@ -86,18 +87,19 @@ export default function CartPage() {
     }
 
     try {
-      setUpdatingId(productId);
+      setUpdatingId(itemId);
       setMessage("");
 
       await apiFetch("/cart/update.php", {
         method: "POST",
         body: JSON.stringify({
-          product_id: productId,
+          id: item.id,
           qty: quantity,
         }),
       });
 
       await loadCart();
+      window.dispatchEvent(new Event("store:counts-changed"));
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Unable to update cart.",
@@ -107,19 +109,23 @@ export default function CartPage() {
     }
   }
 
-  async function removeItem(productId: string) {
+  async function removeItem(itemId: string) {
+    const item = items.find((cartItem) => cartItem.id === itemId);
+    if (!item) return;
     try {
-      setRemovingId(productId);
+      setRemovingId(itemId);
       setMessage("");
 
       await apiFetch("/cart/remove.php", {
         method: "POST",
         body: JSON.stringify({
-          product_id: productId,
+          product_id: item.product_id,
+          variant_id: item.variant_id || null,
         }),
       });
 
       await loadCart();
+      window.dispatchEvent(new Event("store:counts-changed"));
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Unable to remove item.",
@@ -223,26 +229,26 @@ export default function CartPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              updateQuantity(product.id, item.qty - 1)
+                              updateQuantity(item.id, item.qty - 1)
                             }
                             disabled={
-                              updatingId === product.id || item.qty <= 1
+                              updatingId === item.id || item.qty <= 1
                             }
                           >
                             −
                           </button>
 
                           <span>
-                            {updatingId === product.id ? "..." : item.qty}
+                            {updatingId === item.id ? "…" : item.qty}
                           </span>
 
                           <button
                             type="button"
                             onClick={() =>
-                              updateQuantity(product.id, item.qty + 1)
+                              updateQuantity(item.id, item.qty + 1)
                             }
                             disabled={
-                              updatingId === product.id ||
+                              updatingId === item.id ||
                               item.qty >= product.stock
                             }
                           >
@@ -253,10 +259,10 @@ export default function CartPage() {
                         <button
                           type="button"
                           className="cart-remove"
-                          onClick={() => removeItem(product.id)}
-                          disabled={removingId === product.id}
+                          onClick={() => removeItem(item.id)}
+                          disabled={removingId === item.id}
                         >
-                          {removingId === product.id ? "Removing..." : "Remove"}
+                          {removingId === item.id ? "Removing..." : "Remove"}
                         </button>
                       </div>
                     </div>

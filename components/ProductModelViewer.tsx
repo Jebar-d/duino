@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import "@google/model-viewer";
 import {
@@ -118,21 +118,13 @@ export default function ProductModelViewer({
       />
 
       <div className="product-model-toolbar" role="group" aria-label="3D controls">
-        <button type="button" onClick={() => zoom(0.7)} aria-label="Zoom in">
-          +
-        </button>
-        <button type="button" onClick={() => zoom(1.4)} aria-label="Zoom out">
-          −
-        </button>
-        <button type="button" onClick={reset} aria-label="Reset view">
-          ⟲
-        </button>
-        <button type="button" onClick={fullscreen} aria-label="Toggle full screen">
-          ⛶
-        </button>
+        <button type="button" onClick={() => zoom(0.7)} aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M10.5 7v7M7 10.5h7M16 16l5 5"/></svg></button>
+        <button type="button" onClick={() => zoom(1.4)} aria-label="Zoom out" title="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M7 10.5h7M16 16l5 5"/></svg></button>
+        <button type="button" onClick={reset} aria-label="Reset view" title="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2.3 5.7M4 4v7h7"/><path d="M12 7v5l3 2"/></svg></button>
+        <button type="button" onClick={fullscreen} aria-label="Toggle full screen" title="Toggle full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg></button>
       </div>
-
       <p>Drag to rotate. Scroll or pinch to zoom.</p>
     </div>
   );
 }
+

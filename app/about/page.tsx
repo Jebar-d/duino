@@ -1,12 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Award, Mail } from "lucide-react";
 
 const team = [
   { name: "Aboy, Den Gebhard S.", role: "Leader · JS & Git", description: "Project lead & full-stack developer. Manages the codebase, git workflow, and all JavaScript logic.", image: "/den.jpg" },
   { name: "Asuncion, Justine Aaron", role: "HTML / CSS", description: "Front-end developer responsible for structure and layout of core pages.", image: "/justine.jpg" },
   { name: "Bonifacio, Angel Ann", role: "SQL / Database", description: "Database architect. Designs and maintains the Supabase schema and RLS policies.", image: "/angel.jpg" },
   { name: "Cabrillos, John Jasseim", role: "SQL / Database", description: "Co-database developer. Handles queries, data integrity, and backend logic.", image: "/jass.jpg" },
-  { name: "Cruz, John Raymond B.", role: "HTML / CSS", description: "UI/UX developer. Crafts beautiful, responsive interfaces and styles.", image: "/cruz.jpg" },
 ];
 
 export default function AboutPage() {
@@ -28,10 +28,10 @@ export default function AboutPage() {
         </article>
       </section>
       <h2 className="section-title">Meet the Team</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: "1rem", margin: "1.5rem 0 3rem" }}>
+      <div className="about-team-grid">
         {team.map((member, index) => (
           <article className="account-card" key={member.name} style={{ textAlign: "center" }}>
-            {index === 0 && <div aria-label="Team leader">👑</div>}
+            {index === 0 && <div className="about-team-leader" aria-label="Team leader"><Award size={20} aria-hidden="true" /></div>}
             <Image src={member.image} alt={member.name} width={96} height={96} style={{ width: 96, height: 96, objectFit: "cover", borderRadius: "50%", margin: "0 auto 1rem" }} />
             <h3>{member.name}</h3>
             <p style={{ color: "var(--primary)", margin: ".5rem 0" }}>{member.role}</p>
@@ -39,7 +39,7 @@ export default function AboutPage() {
           </article>
         ))}
       </div>
-      <div style={{ textAlign: "center", marginBottom: "2rem" }}><Link href="/contact" className="btn-primary">📬 Get in Touch</Link></div>
+      <div style={{ textAlign: "center", marginBottom: "2rem" }}><Link href="/contact" className="btn-primary"><Mail size={16} aria-hidden="true" /> Get in Touch</Link></div>
     </main>
   );
 }
