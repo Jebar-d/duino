@@ -62,6 +62,9 @@ type OrderResponse = {
   };
 };
 
+type PaymentMethodsResponse = { online_enabled: boolean };
+type CheckoutResponse = { checkout_url?: string; already_paid?: boolean };
+
 export default function CheckoutPage() {
   const router = useRouter();
 
@@ -80,6 +83,8 @@ export default function CheckoutPage() {
   const [postalCode, setPostalCode] = useState("");
   const [shippingMethod, setShippingMethod] = useState("standard");
   const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [onlineEnabled, setOnlineEnabled] = useState(true);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [notes, setNotes] = useState("");
 
   const [promoCode, setPromoCode] = useState("");
@@ -114,6 +119,15 @@ export default function CheckoutPage() {
     return () => {
       window.clearTimeout(timer);
     };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      apiFetch<PaymentMethodsResponse>("/payment/methods.php")
+        .then((data) => setOnlineEnabled(data.online_enabled))
+        .catch(() => undefined);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   function formatPrice(cents: number) {
@@ -218,8 +232,25 @@ export default function CheckoutPage() {
       });
 
       sessionStorage.setItem("last_order", JSON.stringify(data.order));
-
-      router.push(`/order-complete?order=${encodeURIComponent(data.order.id)}`);
+      const orderUrl = `/order-complete?order=${encodeURIComponent(data.order.id)}`;
+      if (paymentMethod === "cod") {
+        router.push(orderUrl);
+      } else {
+        setIsRedirecting(true);
+        try {
+          const checkout = await apiFetch<CheckoutResponse>("/payment/create-checkout.php", {
+            method: "POST",
+            body: JSON.stringify({ order_id: data.order.id }),
+          });
+          if (checkout.checkout_url) {
+            window.location.href = checkout.checkout_url;
+            return;
+          }
+        } catch {
+          // The order page can retry checkout if the initial request fails.
+        }
+        router.push(orderUrl);
+      }
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Unable to create order.",
@@ -392,16 +423,18 @@ export default function CheckoutPage() {
               </label>
 
               <label className="checkout-option">
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="xendit"
-                  checked={paymentMethod === "xendit"}
-                  onChange={(event) => setPaymentMethod(event.target.value)}
-                />
-
-                <span>Online Payment</span>
+                <input type="radio" name="paymentMethod" value="gcash" checked={paymentMethod === "gcash"} disabled={!onlineEnabled} onChange={(event) => setPaymentMethod(event.target.value)} />
+                <span>GCash</span>
               </label>
+              <label className="checkout-option">
+                <input type="radio" name="paymentMethod" value="maya" checked={paymentMethod === "maya"} disabled={!onlineEnabled} onChange={(event) => setPaymentMethod(event.target.value)} />
+                <span>Maya</span>
+              </label>
+              <label className="checkout-option">
+                <input type="radio" name="paymentMethod" value="card" checked={paymentMethod === "card"} disabled={!onlineEnabled} onChange={(event) => setPaymentMethod(event.target.value)} />
+                <span>Card</span>
+              </label>
+              {!onlineEnabled && <p>Online payment is not set up yet. Only Cash on Delivery is available.</p>}
             </section>
 
             <section className="checkout-card">
@@ -517,7 +550,9 @@ export default function CheckoutPage() {
               className="checkout-submit"
               disabled={isSubmitting}
             >
-              {isSubmitting
+              {isRedirecting
+                ? "Redirecting to payment..."
+                : isSubmitting
                 ? "Creating Order..."
                 : paymentMethod === "cod"
                   ? "Place Order"

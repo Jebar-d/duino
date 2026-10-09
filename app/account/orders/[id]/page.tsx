@@ -46,6 +46,7 @@ type Order = {
   created_at: string;
   shipping_method: string;
   payment_method: string;
+  payment_status: string;
   tracking_status: string;
   expected_delivery: string | null;
   cancelled_at: string | null;
@@ -164,6 +165,18 @@ export default function OrderDetailsPage() {
   const canEditOrder =
     order?.status.toLowerCase() === "pending" &&
     order.tracking_status.toLowerCase() !== "shipped";
+  const onlinePayment = ["gcash", "maya", "card"].includes(order?.payment_method.toLowerCase() || "");
+  const paymentLabel = order?.payment_method.toLowerCase() === "gcash"
+    ? "GCash"
+    : order?.payment_method.toLowerCase() === "maya"
+      ? "Maya"
+      : "Card";
+  const paymentStatusLabel = order?.payment_status.toLowerCase() === "paid"
+    ? "Paid"
+    : order?.payment_status.toLowerCase() === "expired"
+      ? "Expired"
+      : "Unpaid";
+  const canCompletePayment = onlinePayment && paymentStatusLabel === "Unpaid" && order?.status.toLowerCase() !== "cancelled" && !order?.cancelled_at;
 
   const startAddressEdit = () => {
     const address = order?.shipping_address;
@@ -453,9 +466,15 @@ export default function OrderDetailsPage() {
                 <strong>
                   {order.payment_method === "cod"
                     ? "Cash on Delivery"
-                    : formatStatus(order.payment_method)}
+                    : `${paymentLabel} · ${paymentStatusLabel}`}
                 </strong>
               </div>
+              {canCompletePayment && (
+                <div>
+                  <span>Payment</span>
+                  <Link href={`/order-complete?order=${encodeURIComponent(order.id)}`}>Complete payment</Link>
+                </div>
+              )}
 
               <div>
                 <span>Shipping</span>
@@ -630,7 +649,7 @@ export default function OrderDetailsPage() {
                 <strong>
                   {order.payment_method === "cod"
                     ? "Cash on Delivery"
-                    : formatStatus(order.payment_method)}
+                    : `${paymentLabel} · ${paymentStatusLabel}`}
                 </strong>
               </div>
 
