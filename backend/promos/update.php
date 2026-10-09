@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+session_start();
+date_default_timezone_set('Asia/Manila');
 header("Access-Control-Allow-Origin: http://localhost:3000");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: PUT, POST, OPTIONS");
@@ -26,8 +28,11 @@ if (
 }
 
 require_once __DIR__ . "/../config/database.php";
+require_once __DIR__ . "/../config/auth.php";
+require_once __DIR__ . "/../config/promos.php";
 
 $pdo = getDatabaseConnection();
+requireAdmin($pdo);
 
 $input = json_decode(
     file_get_contents("php://input"),
@@ -144,31 +149,22 @@ if ($validUntil === "") {
 }
 
 if ($validFrom === "") {
-    $validFrom = date("Y-m-d H:i:s");
+    $validFrom = (new DateTimeImmutable("now", new DateTimeZone("Asia/Manila")))->format("Y-m-d H:i:s");
 }
 
-$validFromTimestamp = strtotime($validFrom);
-$validUntilTimestamp = strtotime($validUntil);
-
-if ($validFromTimestamp === false) {
+try {
+    $validFromDate = parsePromoDateTime($validFrom);
+    $validUntilDate = parsePromoDateTime($validUntil);
+} catch (InvalidArgumentException $e) {
     http_response_code(400);
     echo json_encode([
         "success" => false,
-        "message" => "Invalid start date."
+        "message" => $e->getMessage()
     ]);
     exit;
 }
 
-if ($validUntilTimestamp === false) {
-    http_response_code(400);
-    echo json_encode([
-        "success" => false,
-        "message" => "Invalid expiry date."
-    ]);
-    exit;
-}
-
-if ($validUntilTimestamp <= $validFromTimestamp) {
+if ($validUntilDate <= $validFromDate) {
     http_response_code(400);
     echo json_encode([
         "success" => false,
@@ -239,14 +235,8 @@ try {
     $query->execute([
         "code" => $code,
         "discount_percent" => $discountPercent,
-        "valid_from" => date(
-            "Y-m-d H:i:s",
-            $validFromTimestamp
-        ),
-        "valid_until" => date(
-            "Y-m-d H:i:s",
-            $validUntilTimestamp
-        ),
+        "valid_from" => promoDateTimeForDatabase($validFromDate),
+        "valid_until" => promoDateTimeForDatabase($validUntilDate),
         "max_uses" => $maxUses,
         "is_free_shipping" => $isFreeShipping ? 1 : 0,
         "min_order_cents" => $minOrderCents,
@@ -256,9 +246,24 @@ try {
         "id" => $id
     ]);
 
+    $status = promoExpirationStatus([
+        "valid_from" => promoDateTimeForDatabase($validFromDate),
+        "valid_until" => promoDateTimeForDatabase($validUntilDate),
+        "max_uses" => $maxUses,
+        "used_count" => (int) $promo["used_count"],
+    ]);
     echo json_encode([
         "success" => true,
-        "message" => "Promo updated successfully."
+        "message" => "Promo updated successfully.",
+        "promo" => [
+            "id" => $id,
+            "code" => $code,
+            "valid_from" => $validFromDate->format(DateTimeInterface::ATOM),
+            "valid_until" => $validUntilDate->format(DateTimeInterface::ATOM),
+            "expiration_at" => $validUntilDate->format(DateTimeInterface::ATOM),
+            "status" => $status,
+            "is_expired" => $status === "expired",
+        ],
     ], JSON_UNESCAPED_UNICODE);
 
 } catch (Throwable $e) {

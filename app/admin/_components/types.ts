@@ -20,6 +20,9 @@ export type Promo = {
   discount_percent: number;
   valid_from: string;
   valid_until: string;
+  expiration_at?: string | null;
+  status?: string | null;
+  is_expired?: boolean;
   max_uses: number | null;
   used_count: number;
   is_free_shipping: boolean;
@@ -116,8 +119,7 @@ export type RawAnalytics = Partial<Omit<AnalyticsData, "monthly_revenue" | "top_
 export type Tab =
   | "dashboard"
   | "analytics"
-  | "products"
-  | "categories"
+  | "inventory"
   | "promos"
   | "orders"
   | "users"

@@ -23,6 +23,10 @@ type Product = {
   img_url?: string | null;
   model_url?: string | null;
   category_id?: string | null;
+  sku?: string | null;
+  low_stock_threshold?: number;
+  availability?: "in_stock" | "low_stock" | "out_of_stock" | string;
+  is_low_stock?: boolean;
 };
 
 type Category = {
@@ -204,9 +208,11 @@ export default function ProductsPage() {
                     ₱{(product.price_cents / 100).toFixed(2)}
                   </p>
 
-                  {product.stock > 0 ? (
+                  {product.stock > 0 && product.availability !== "out_of_stock" ? (
                     <p className="product-stock in-stock">
-                      ✓ In Stock ({product.stock})
+                      {product.availability === "low_stock" || product.is_low_stock
+                        ? `Low Stock (${product.stock})`
+                        : `✓ In Stock (${product.stock})`}
                     </p>
                   ) : (
                     <p className="product-stock out-of-stock">✗ Out of Stock</p>

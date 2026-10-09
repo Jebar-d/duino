@@ -45,6 +45,8 @@ try {
 
     require_once __DIR__ . '/../config/database.php';
     require_once __DIR__ . '/../config/auth.php';
+    require_once __DIR__ . '/../config/inventory.php';
+    require_once __DIR__ . '/../config/promos.php';
     require_once __DIR__ . '/../config/order-response.php';
 
     $input = json_decode(file_get_contents('php://input'), true);
@@ -109,15 +111,21 @@ try {
         if (!is_array($items) || count($items) < 1 || count($items) > 100) {
             customerOrderError(422, 'Order must contain at least one item.');
         }
-        $oldItemsQuery = $pdo->prepare('SELECT product_id, variant_id, qty FROM order_items WHERE order_id = :id FOR UPDATE');
+        $oldItemsQuery = $pdo->prepare('SELECT id, product_id, variant_id, qty FROM order_items WHERE order_id = :id FOR UPDATE');
         $oldItemsQuery->execute(['id' => $orderId]);
         foreach ($oldItemsQuery->fetchAll(PDO::FETCH_ASSOC) as $oldItem) {
-            if ($oldItem['variant_id'] !== null) {
-                $restore = $pdo->prepare('UPDATE variants SET stock = stock + :qty WHERE id = :id');
-                $restore->execute(['qty' => $oldItem['qty'], 'id' => $oldItem['variant_id']]);
-            } elseif ($oldItem['product_id'] !== null) {
-                $restore = $pdo->prepare('UPDATE products SET stock = stock + :qty WHERE id = :id');
-                $restore->execute(['qty' => $oldItem['qty'], 'id' => $oldItem['product_id']]);
+            if ($oldItem['product_id'] !== null) {
+                changeInventoryStock(
+                    $pdo,
+                    (string) $oldItem['product_id'],
+                    $oldItem['variant_id'] !== null ? (string) $oldItem['variant_id'] : null,
+                    (int) $oldItem['qty'],
+                    'Customer order item edit: stock released',
+                    (string) $_SESSION['user_id'],
+                    $orderId,
+                    (string) $oldItem['id'],
+                    'order-edit-release:' . $oldItem['id']
+                );
             }
         }
 
@@ -156,14 +164,19 @@ try {
             if ($price < 0) {
                 customerOrderError(422, 'Product price is invalid.');
             }
-            $stockUpdate = $variantId !== null
-                ? $pdo->prepare('UPDATE variants SET stock = stock - :qty WHERE id = :id AND stock >= :available')
-                : $pdo->prepare('UPDATE products SET stock = stock - :qty WHERE id = :id AND stock >= :available');
-            $stockUpdate->execute(['qty' => $qty, 'id' => $variantId ?? $productId, 'available' => $qty]);
-            if ($stockUpdate->rowCount() !== 1) {
-                customerOrderError(409, 'Stock changed while the order was being updated. Please try again.');
-            }
-            $newItems[] = ['product_id' => $productId, 'variant_id' => $variantId, 'qty' => $qty, 'price_cents' => $price, 'product_name' => $product['name'], 'product_img' => $product['img_url']];
+            $newItemId = newUuid();
+            changeInventoryStock(
+                $pdo,
+                $productId,
+                $variantId,
+                -$qty,
+                'Customer order item edit',
+                (string) $_SESSION['user_id'],
+                $orderId,
+                $newItemId,
+                'order-edit-sale:' . $newItemId
+            );
+            $newItems[] = ['id' => $newItemId, 'product_id' => $productId, 'variant_id' => $variantId, 'qty' => $qty, 'price_cents' => $price, 'product_name' => $product['name'], 'product_img' => $product['img_url']];
             $subtotalCents += $price * $qty;
         }
 
@@ -174,7 +187,8 @@ try {
             $promoQuery->execute(['code' => strtoupper((string)$order['promo_code'])]);
             $promo = $promoQuery->fetch(PDO::FETCH_ASSOC);
             $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Manila'));
-            if (!$promo || (!empty($promo['valid_from']) && $now < new DateTimeImmutable((string)$promo['valid_from'], new DateTimeZone('Asia/Manila'))) || (!empty($promo['valid_until']) && $now > new DateTimeImmutable((string)$promo['valid_until'], new DateTimeZone('Asia/Manila'))) || $subtotalCents < (int)($promo['min_order_cents'] ?? 0) || ($promo['max_uses'] !== null && (int)$promo['max_uses'] > 0 && (int)$promo['used_count'] > (int)$promo['max_uses'])) {
+            $promoStatus = $promo ? promoExpirationStatus($promo, $now) : 'invalid';
+            if (!$promo || $promoStatus === 'expired' || $promoStatus === 'scheduled' || (!empty($promo['valid_from']) && $now < new DateTimeImmutable((string)$promo['valid_from'], new DateTimeZone('Asia/Manila'))) || $subtotalCents < (int)($promo['min_order_cents'] ?? 0) || ($promo['max_uses'] !== null && (int)$promo['max_uses'] > 0 && (int)$promo['used_count'] > (int)$promo['max_uses'])) {
                 customerOrderError(409, 'The order promo is no longer valid; remove it before editing items.');
             }
             $percent = max(0, min(100, (int)($promo['discount_percent'] ?? 0)));
@@ -188,7 +202,7 @@ try {
         $deleteItems->execute(['id' => $orderId]);
         $insertItem = $pdo->prepare('INSERT INTO order_items (id, order_id, product_id, variant_id, qty, price_cents, product_name, product_img) VALUES (:id, :order_id, :product_id, :variant_id, :qty, :price_cents, :product_name, :product_img)');
         foreach ($newItems as $item) {
-            $insertItem->execute(['id' => newUuid(), 'order_id' => $orderId] + $item);
+            $insertItem->execute(['id' => $item['id'], 'order_id' => $orderId] + $item);
         }
         $updateOrder = $pdo->prepare('UPDATE orders SET total_cents = :total_cents WHERE id = :id');
         $updateOrder->execute(['total_cents' => $totalCents, 'id' => $orderId]);
@@ -219,6 +233,12 @@ try {
     }
     http_response_code($e->httpStatus);
     echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+} catch (InventoryUnavailableException $e) {
+    if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    http_response_code(409);
+    echo json_encode(['success' => false, 'message' => $e->getMessage(), 'error_code' => 'INSUFFICIENT_STOCK'], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {
     if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();

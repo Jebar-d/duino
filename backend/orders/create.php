@@ -68,6 +68,8 @@ session_set_cookie_params([
 session_start();
 
 require_once __DIR__ . "/../config/database.php";
+require_once __DIR__ . "/../config/inventory.php";
+require_once __DIR__ . "/../config/promos.php";
 require_once __DIR__ . "/../config/auth.php";
 require_once __DIR__ . "/../config/xendit.php";
 
@@ -185,7 +187,7 @@ try {
         }
 
         if ($stock < $quantity) {
-            throw new Exception(
+            throw new InventoryUnavailableException(
                 "Only " .
                 $stock .
                 " item(s) of " .
@@ -233,6 +235,10 @@ try {
         $timezone = new DateTimeZone("Asia/Manila");
         $now = new DateTimeImmutable("now", $timezone);
 
+        if (promoExpirationStatus($promo, $now) === "expired") {
+            throw new PromoExpiredException("This promo code has expired.");
+        }
+
         if (!empty($promo["valid_from"])) {
             $validFrom = new DateTimeImmutable(
                 (string) $promo["valid_from"],
@@ -252,8 +258,8 @@ try {
                 $timezone
             );
 
-            if ($now > $validUntil) {
-                throw new Exception(
+            if ($now >= $validUntil) {
+                throw new PromoExpiredException(
                     "This promo code has expired."
                 );
             }
@@ -395,14 +401,6 @@ try {
         )
     ");
 
-    $stockQuery = $pdo->prepare("
-        UPDATE products
-        SET stock = stock - :qty_decrement
-        WHERE id = :product_id
-        AND stock >= :qty_available
-    ");
-    $variantStockQuery = $pdo->prepare("UPDATE variants SET stock=stock-:qty WHERE id=:id AND stock>=:available");
-
     foreach ($cartItems as $item) {
         $itemId = newUuid();
 
@@ -419,21 +417,17 @@ try {
             "product_img" => $item["img_url"]
         ]);
 
-        if ($item["variant_id"] !== null) {
-            $variantStockQuery->execute(["qty"=>$quantity,"id"=>$item["variant_id"],"available"=>$quantity]);
-            $changed = $variantStockQuery->rowCount();
-        } else {
-            $stockQuery->execute(["qty_decrement"=>$quantity,"product_id"=>$item["product_id"],"qty_available"=>$quantity]);
-            $changed = $stockQuery->rowCount();
-        }
-
-        if ($changed !== 1) {
-            throw new Exception(
-                "Unable to update stock for " .
-                $item["name"] .
-                "."
-            );
-        }
+        changeInventoryStock(
+            $pdo,
+            (string) $item["product_id"],
+            $item["variant_id"] !== null ? (string) $item["variant_id"] : null,
+            -$quantity,
+            "Customer checkout",
+            (string) $userId,
+            $orderId,
+            $itemId,
+            "order-sale:" . $orderId . ":" . $itemId
+        );
     }
 
     if ($appliedPromoCode !== null) {
@@ -492,6 +486,27 @@ try {
         ]
     ], JSON_UNESCAPED_UNICODE);
 
+} catch (InventoryUnavailableException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    http_response_code(409);
+    echo json_encode([
+        "success" => false,
+        "message" => $e->getMessage(),
+        "error_code" => "INSUFFICIENT_STOCK"
+    ], JSON_UNESCAPED_UNICODE);
+} catch (PromoExpiredException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    http_response_code(422);
+    echo json_encode([
+        "success" => false,
+        "message" => $e->getMessage(),
+        "error_code" => "PROMO_EXPIRED",
+        "is_expired" => true
+    ], JSON_UNESCAPED_UNICODE);
 } catch (PDOException $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();

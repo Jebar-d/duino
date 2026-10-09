@@ -253,10 +253,12 @@ export function ProductsView({
     if (
       !cleanName ||
       !cleanSlug ||
+      !stock.trim() ||
       !Number.isFinite(numericPrice) ||
-      !Number.isInteger(numericStock)
+      !Number.isInteger(numericStock) ||
+      numericStock < 0
     ) {
-      showToast("Fill all required fields.", "error");
+      showToast("Enter valid product details and a non-negative whole stock quantity.", "error");
       return;
     }
 
@@ -413,7 +415,7 @@ export function ProductsView({
     <>
       <div className="adm-ph">
         <div>
-          <div className="adm-ph-title">Products</div>
+          <div className="adm-ph-title">Inventory</div>
           <div className="adm-ph-sub">{products.length} items in catalog</div>
         </div>
 
@@ -486,7 +488,7 @@ export function ProductsView({
                   <td>{money(product.price_cents)}</td>
 
                   <td>
-                    {product.stock <= 5 ? (
+                    {product.stock === 0 ? (
                       <span className="b b-r">{product.stock}</span>
                     ) : (
                       <span className="b b-g">{product.stock}</span>

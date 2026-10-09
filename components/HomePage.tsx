@@ -14,6 +14,7 @@ import {
   getProductImageUrl,
   handleProductImageError,
 } from "../lib/product-assets";
+import { getPromoStatus } from "../lib/promo-status";
 
 type Product = {
   id: string;
@@ -24,13 +25,20 @@ type Product = {
   description?: string | null;
   img_url?: string | null;
   model_url?: string | null;
+  availability?: "in_stock" | "low_stock" | "out_of_stock" | string;
+  is_low_stock?: boolean;
+  low_stock_threshold?: number;
 };
 
 type Promo = {
   id: string;
   code: string;
   discount_percent: number;
+  valid_from?: string | null;
   valid_until?: string | null;
+  expiration_at?: string | null;
+  status?: string | null;
+  is_expired?: boolean;
   min_order_cents: number;
   description?: string | null;
   is_free_shipping: boolean;
@@ -43,15 +51,14 @@ export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [promos, setPromos] = useState<Promo[]>([]);
+  const [promosLoaded, setPromosLoaded] = useState(false);
   const [wishlist, setWishlist] = useState<Set<string>>(new Set());
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [promoOpen, setPromoOpen] = useState(false);
-  const [promoCode, setPromoCode] = useState("ARDUINO10");
-  const [promoMessage, setPromoMessage] = useState(
-    "Get 10% off your next order! Use code at checkout:",
-  );
-  const [promoSeconds, setPromoSeconds] = useState(600);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoMessage, setPromoMessage] = useState("");
+  const [promoSeconds, setPromoSeconds] = useState(0);
   const [heroSearch, setHeroSearch] = useState("");
   const [newsletterEmail, setNewsletterEmail] = useState("");
 
@@ -132,21 +139,42 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(async () => {
+    let cancelled = false;
+
+    async function loadPromos() {
       try {
         const data = await apiFetch<{
           promos?: Promo[];
-        }>("/promos/active.php");
+        }>("/promos/list.php");
 
-        if (Array.isArray(data.promos)) {
+        if (!cancelled && Array.isArray(data.promos)) {
           setPromos(data.promos);
         }
       } catch {
-        setPromos([]);
+        if (!cancelled) {
+          setPromos([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setPromosLoaded(true);
+        }
       }
-    }, 0);
+    }
 
-    return () => clearTimeout(timer);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void loadPromos();
+      }
+    };
+    void loadPromos();
+    const interval = window.setInterval(() => void loadPromos(), 60_000);
+    window.addEventListener("focus", refreshWhenVisible);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshWhenVisible);
+    };
   }, []);
 
   useEffect(() => {
@@ -176,7 +204,7 @@ export default function HomePage() {
   }, [authLoading, isLoggedIn]);
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn || !promosLoaded) {
       return;
     }
 
@@ -187,37 +215,29 @@ export default function HomePage() {
     }
 
     const timer = setTimeout(() => {
-      const availablePromos = [
-        {
-          code: "ARDUINO10",
-          message: "Get 10% off your next order! Use code at checkout:",
-          seconds: 600,
-        },
-        {
-          code: "FREESHIP",
-          message: "FREE shipping on orders ₱1,500+! Use code at checkout:",
-          seconds: 900,
-        },
-        {
-          code: "WELCOME15",
-          message: "First order? Get 15% off with this exclusive code!",
-          seconds: 1800,
-        },
-      ];
+      const activePromos = promos.filter(
+        (promo) => getPromoStatus(promo) === "active",
+      );
 
-      const randomPromo =
-        availablePromos[Math.floor(Math.random() * availablePromos.length)];
+      if (activePromos.length === 0) {
+        return;
+      }
 
-      setPromoCode(randomPromo.code);
-      setPromoMessage(randomPromo.message);
-      setPromoSeconds(randomPromo.seconds);
+      const promo = activePromos[Math.floor(Math.random() * activePromos.length)];
+      const expiration = new Date(
+        (promo.expiration_at || promo.valid_until || "").replace(" ", "T"),
+      ).getTime();
+
+      setPromoCode(promo.code);
+      setPromoMessage(promo.description || "Use this promo code at checkout:");
+      setPromoSeconds(Math.max(0, Math.floor((expiration - Date.now()) / 1000)));
       setPromoOpen(true);
 
       sessionStorage.setItem(popupKey, "1");
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [isLoggedIn]);
+  }, [isLoggedIn, promosLoaded, promos]);
 
   useEffect(() => {
     if (!promoOpen) {
@@ -266,6 +286,8 @@ export default function HomePage() {
       );
     });
   }, [products, productSearch]);
+
+  const carouselPromos = promos.slice(0, 2);
 
   async function toggleWishlist(productId: string) {
     if (authLoading) {
@@ -949,21 +971,33 @@ export default function HomePage() {
                       display: "block",
                     }}
                   >
-                    Free Shipping
+                    {carouselPromos[0]
+                      ? getPromoStatus(carouselPromos[0])
+                      : "Promotions"}
                   </span>
 
-                  <h3>Bulk Order Deal</h3>
+                  <h3>
+                    {carouselPromos[0]
+                      ? carouselPromos[0].is_free_shipping
+                        ? "Free Shipping Offer"
+                        : `${carouselPromos[0].discount_percent}% Off`
+                      : "Browse New Offers"}
+                  </h3>
 
                   <p>
-                    Order ₱1,500+ and get FREE nationwide shipping. Use code{" "}
-                    <strong
-                      style={{
-                        color: "var(--primary)",
-                      }}
-                    >
-                      FREESHIP
-                    </strong>
-                    .
+                    {carouselPromos[0] ? (
+                      <>
+                        Use code{" "}
+                        <strong style={{ color: "var(--primary)" }}>
+                          {carouselPromos[0].code}
+                        </strong>
+                        {(carouselPromos[0].expiration_at || carouselPromos[0].valid_until)
+                          ? ` until ${new Date((carouselPromos[0].expiration_at || carouselPromos[0].valid_until || "").replace(" ", "T")).toLocaleDateString("en-PH")}.`
+                          : "."}
+                      </>
+                    ) : (
+                      "Browse the store for current offers."
+                    )}
                   </p>
 
                   <Link
@@ -1003,21 +1037,33 @@ export default function HomePage() {
                       display: "block",
                     }}
                   >
-                    Starter Kit
+                    {carouselPromos[1]
+                      ? getPromoStatus(carouselPromos[1])
+                      : "Promotions"}
                   </span>
 
-                  <h3>Save 15% Today</h3>
+                  <h3>
+                    {carouselPromos[1]
+                      ? carouselPromos[1].is_free_shipping
+                        ? "Free Shipping Offer"
+                        : `${carouselPromos[1].discount_percent}% Off`
+                      : "Find Your Next Project"}
+                  </h3>
 
                   <p>
-                    First-time buyer? Use code{" "}
-                    <strong
-                      style={{
-                        color: "var(--primary)",
-                      }}
-                    >
-                      WELCOME15
-                    </strong>{" "}
-                    for 15% off your first order!
+                    {carouselPromos[1] ? (
+                      <>
+                        Use code{" "}
+                        <strong style={{ color: "var(--primary)" }}>
+                          {carouselPromos[1].code}
+                        </strong>
+                        {(carouselPromos[1].expiration_at || carouselPromos[1].valid_until)
+                          ? ` until ${new Date((carouselPromos[1].expiration_at || carouselPromos[1].valid_until || "").replace(" ", "T")).toLocaleDateString("en-PH")}.`
+                          : "."}
+                      </>
+                    ) : (
+                      "Explore Arduino boards, sensors, and accessories."
+                    )}
                   </p>
 
                   <Link
@@ -1209,7 +1255,7 @@ export default function HomePage() {
                   key={product.id}
                   style={{
                     animationDelay: `${index * 0.08}s`,
-                    opacity: product.stock === 0 ? 0.75 : 1,
+                    opacity: product.stock === 0 || product.availability === "out_of_stock" ? 0.75 : 1,
                   }}
                 >
                   <div className="featured-image">
@@ -1224,7 +1270,7 @@ export default function HomePage() {
                       {product.model_url ? "3D" : "NEW"}
                     </div>
 
-                    {product.stock === 0 && (
+                    {(product.stock === 0 || product.availability === "out_of_stock") && (
                       <div
                         style={{
                           position: "absolute",
@@ -1263,7 +1309,7 @@ export default function HomePage() {
                       …
                     </p>
 
-                    {product.stock === 0 ? (
+                    {product.stock === 0 || product.availability === "out_of_stock" ? (
                       <span
                         style={{
                           background: "rgba(255,255,255,0.05)",
@@ -1275,7 +1321,7 @@ export default function HomePage() {
                       >
                         Out of Stock
                       </span>
-                    ) : product.stock < 5 ? (
+                    ) : product.availability === "low_stock" || product.is_low_stock ? (
                       <span
                         style={{
                           background: "rgba(255,255,255,0.05)",
@@ -1285,7 +1331,7 @@ export default function HomePage() {
                           borderRadius: "10px",
                         }}
                       >
-                        Only {product.stock} left
+                        Low Stock ({product.stock})
                       </span>
                     ) : null}
 
@@ -1295,7 +1341,7 @@ export default function HomePage() {
 
                     <div className="featured-footer">
                       <span>
-                        {product.stock === 0 ? "View Product" : "View Details"}
+                        {product.stock === 0 || product.availability === "out_of_stock" ? "View Product" : "View Details"}
                       </span>
 
                       <Button
@@ -1442,7 +1488,11 @@ export default function HomePage() {
                 No active promos right now. Check back soon!
               </p>
             ) : (
-              promos.map((promo) => (
+              promos.map((promo) => {
+                const status = getPromoStatus(promo);
+                const expired = status === "expired";
+
+                return (
                 <div
                   className="voucher-card"
                   key={promo.id}
@@ -1504,9 +1554,12 @@ export default function HomePage() {
                         </div>
                       )}
                     </div>
-
-                    <Button
-                      onClick={() => claimVoucher(promo.code)}
+                      <span className={expired ? "b b-r" : status === "active" ? "b b-g" : "b b-o"}>
+                        {status === "expired" ? "Expired" : status === "active" ? "Active" : status}
+                      </span>
+                      <Button
+                        onClick={() => claimVoucher(promo.code)}
+                        disabled={!["active"].includes(status)}
                       className="voucher-claim"
                       style={{
                         padding: "0.45rem 1rem",
@@ -1520,13 +1573,15 @@ export default function HomePage() {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {promo.is_free_shipping
+                      {expired
+                        ? "Expired"
+                        : promo.is_free_shipping
                         ? "Free Ship"
                         : `${promo.discount_percent}% Off`}
                     </Button>
                   </div>
 
-                  {promo.valid_until && (
+                  {(promo.expiration_at || promo.valid_until) && (
                     <div
                       style={{
                         fontSize: "0.7rem",
@@ -1534,7 +1589,7 @@ export default function HomePage() {
                       }}
                     >
                       Expires:{" "}
-                      {new Date(promo.valid_until).toLocaleDateString("en-PH", {
+                      {new Date((promo.expiration_at || promo.valid_until || "").replace(" ", "T")).toLocaleDateString("en-PH", {
                         month: "short",
                         day: "numeric",
                         year: "numeric",
@@ -1542,7 +1597,8 @@ export default function HomePage() {
                     </div>
                   )}
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

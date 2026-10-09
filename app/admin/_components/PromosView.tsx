@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../../../lib/api";
+import { getPromoStatus } from "../../../lib/promo-status";
 import type { Promo } from "./types";
 
 export function PromosView({
@@ -293,7 +294,19 @@ export function PromosView({
                     <tr key={promo.id}>
                       <td><strong>{promo.code}</strong>{promo.description && <div className="admin-promo-description">{promo.description}</div>}</td>
                       <td>{promo.discount_percent}%{promo.is_free_shipping ? " + Free Shipping" : ""}<div className="admin-promo-description">Min. ₱{(promo.min_order_cents / 100).toFixed(2)}</div></td>
-                      <td>{new Date(promo.valid_from).toLocaleDateString("en-PH")} – {new Date(promo.valid_until).toLocaleDateString("en-PH")}</td>
+                      <td>
+                        {new Date(promo.valid_from.replace(" ", "T")).toLocaleDateString("en-PH")} – {new Date(promo.valid_until.replace(" ", "T")).toLocaleDateString("en-PH")}
+                        {" "}
+                        <span className={
+                          getPromoStatus(promo) === "expired"
+                            ? "b b-r"
+                            : getPromoStatus(promo) === "active"
+                              ? "b b-g"
+                              : "b b-o"
+                        }>
+                          {getPromoStatus(promo)}
+                        </span>
+                      </td>
                       <td>{promo.used_count} / {promo.max_uses ?? "∞"}</td>
                       <td>
                         <div className="admin-table-actions">

@@ -38,6 +38,7 @@ function getDatabaseConnection(): PDO
                 PDO::ATTR_PERSISTENT => false,
             ]
         );
+        $pdo->exec("SET time_zone = '+08:00'");
 
         return $pdo;
     } catch (PDOException $e) {

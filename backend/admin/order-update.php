@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../config/inventory.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 if (!is_array($input)) {
@@ -96,7 +97,7 @@ if ($status === 'delivered') {
 
 try {
     $pdo = getDatabaseConnection();
-    requireAdmin($pdo);
+    $actorId = requireAdmin($pdo);
     $pdo->beginTransaction();
 
     $query = $pdo->prepare(
@@ -131,16 +132,25 @@ try {
         exit;
     }
 
-    if ($newStatus === 'cancelled' && $existing['status'] !== 'cancelled') {
-        $items = $pdo->prepare('SELECT product_id, variant_id, qty FROM order_items WHERE order_id = :id');
+    if (
+        $newStatus === 'cancelled'
+        && !in_array($existing['status'], ['cancelled', 'refunded'], true)
+    ) {
+        $items = $pdo->prepare('SELECT id, product_id, variant_id, qty FROM order_items WHERE order_id = :id');
         $items->execute(['id' => $orderId]);
         foreach ($items->fetchAll(PDO::FETCH_ASSOC) as $item) {
-            if ($item['variant_id'] !== null) {
-                $restore = $pdo->prepare('UPDATE variants SET stock = stock + :qty WHERE id = :id');
-                $restore->execute(['qty' => $item['qty'], 'id' => $item['variant_id']]);
-            } elseif ($item['product_id'] !== null) {
-                $restore = $pdo->prepare('UPDATE products SET stock = stock + :qty WHERE id = :id');
-                $restore->execute(['qty' => $item['qty'], 'id' => $item['product_id']]);
+            if ($item['product_id'] !== null) {
+                changeInventoryStock(
+                    $pdo,
+                    (string) $item['product_id'],
+                    $item['variant_id'] !== null ? (string) $item['variant_id'] : null,
+                    (int) $item['qty'],
+                    'Order cancelled by admin: stock restored',
+                    $actorId,
+                    $orderId,
+                    (string) $item['id'],
+                    'order-cancel-restore:' . $item['id']
+                );
             }
         }
     }

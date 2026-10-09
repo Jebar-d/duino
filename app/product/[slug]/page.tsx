@@ -30,6 +30,7 @@ type Variant = {
   option_value: string;
   price_adjustment: number;
   stock: number;
+  availability?: "in_stock" | "low_stock" | "out_of_stock" | string;
   img_url: string | null;
 };
 
@@ -43,6 +44,10 @@ type Product = {
   img_url: string | null;
   model_url: string | null;
   category_id: string | null;
+  sku?: string | null;
+  low_stock_threshold?: number;
+  availability?: "in_stock" | "low_stock" | "out_of_stock" | string;
+  is_low_stock?: boolean;
 };
 
 type Review = {
@@ -357,10 +362,25 @@ export default function ProductDetailPage() {
     variants.find((variant) => variant.id === selectedVariantId) ?? null;
   const activePriceCents =
     (product?.price_cents ?? 0) + (selectedVariant?.price_adjustment ?? 0);
-  const activeStock = selectedVariant ? selectedVariant.stock : (product?.stock ?? 0);
+  const activeStock = selectedVariant
+    ? selectedVariant.availability === "out_of_stock"
+      ? 0
+      : selectedVariant.stock
+    : product?.availability === "out_of_stock"
+      ? 0
+      : product?.stock ?? 0;
 
   const addToCart = async () => {
     if (!product) {
+      return;
+    }
+
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > activeStock) {
+      setCartMessage(
+        activeStock > 0
+          ? `Only ${activeStock} item(s) are available.`
+          : "This product is out of stock.",
+      );
       return;
     }
 
@@ -591,7 +611,7 @@ export default function ProductDetailPage() {
                     <button
                       key={variant.id}
                       type="button"
-                      disabled={variant.stock <= 0}
+                      disabled={variant.stock <= 0 || variant.availability === "out_of_stock"}
                       className={variant.id === selectedVariantId ? "active" : ""}
                       onClick={() => {
                         setSelectedVariantId(variant.id);
@@ -642,7 +662,7 @@ export default function ProductDetailPage() {
                 <button
                   type="button"
                   onClick={addToCart}
-                  disabled={cartLoading}
+                  disabled={cartLoading || quantity > activeStock}
                   className="product-add-cart"
                 >
                   {cartLoading ? "Adding..." : "Add to Cart"}

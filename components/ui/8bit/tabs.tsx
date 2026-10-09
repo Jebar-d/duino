@@ -24,7 +24,7 @@ export const tabsVariants = cva("", {
     },
   },
   defaultVariants: {
-    font: "normal",
+    font: "retro",
   },
 });
 
@@ -34,7 +34,8 @@ export interface BitTabsProps
   asChild?: boolean;
 }
 
-function Tabs({ className, font = "normal", ...props }: BitTabsProps) {
+function Tabs({ className, ...props }: BitTabsProps) {
+  const { font } = props;
 
   return (
     <ShadcnTabs
@@ -55,12 +56,12 @@ function TabsList({
       className={cn("relative bg-card rounded-none", className)}
     >
       <div
-        className="pointer-events-none absolute inset-0 border-y-2 border-foreground dark:border-ring"
+        className="absolute inset-0 border-y-6 -my-1.5 border-foreground dark:border-ring pointer-events-none"
         aria-hidden="true"
       />
 
       <div
-        className="pointer-events-none absolute inset-0 border-x-2 border-foreground dark:border-ring"
+        className="absolute inset-0 border-x-6 -mx-1.5 border-foreground dark:border-ring pointer-events-none"
         aria-hidden="true"
       />
       {children}
@@ -76,7 +77,7 @@ function TabsTrigger({
   return (
     <ShadcnTabsTrigger
       className={cn(
-        "retro border-none text-xs data-[state=active]:bg-accent data-[state=active]:text-foreground text-muted-foreground rounded-none",
+        "border-none data-[state=active]:bg-accent data-[state=active]:text-foreground text-muted-foreground rounded-none",
         className
       )}
       {...props}
@@ -90,7 +91,7 @@ function TabsContent({
   className,
   ...props
 }: React.ComponentProps<typeof ShadcnTabsContent>) {
-  return <ShadcnTabsContent className={cn("text-sm", className)} {...props} />;
+  return <ShadcnTabsContent className={cn("", className)} {...props} />;
 }
 
 export { Tabs, TabsList, TabsContent, TabsTrigger };

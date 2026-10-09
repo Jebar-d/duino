@@ -86,6 +86,19 @@ if ($orderItemCount > 0) {
     exit;
 }
 
+$stmt = $pdo->prepare(
+    'SELECT COUNT(*) FROM stock_transactions WHERE product_id = :id'
+);
+$stmt->execute(['id' => $id]);
+if ((int) $stmt->fetchColumn() > 0) {
+    http_response_code(409);
+    echo json_encode([
+        'success' => false,
+        'message' => 'This product cannot be deleted because it has inventory history.'
+    ]);
+    exit;
+}
+
 $pdo->beginTransaction();
 
 try {

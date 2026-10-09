@@ -14,40 +14,37 @@ export const inputVariants = cva("", {
     },
   },
   defaultVariants: {
-    font: "normal",
+    font: "retro",
   },
 });
 
 export interface BitInputProps
   extends React.InputHTMLAttributes<HTMLInputElement>,
     VariantProps<typeof inputVariants> {
-  inputClassName?: string;
+  asChild?: boolean;
 }
 
-function Input({
-  className,
-  font = "normal",
-  inputClassName,
-  ...props
-}: BitInputProps) {
+function Input({ ...props }: BitInputProps) {
+  const { className, font } = props;
+
   return (
     <div
       className={cn(
-        "relative flex h-10 items-center border-y-2 border-foreground dark:border-ring",
+        "relative border-y-6 border-foreground dark:border-ring !p-0 flex items-center",
         className
       )}
     >
       <ShadcnInput
         {...props}
         className={cn(
-          "h-full w-full rounded-none border-0 px-3 py-1 text-sm ring-0",
+          "rounded-none ring-0 !w-full",
           font !== "normal" && "retro",
-          inputClassName
+          className
         )}
       />
 
       <div
-        className="pointer-events-none absolute inset-0 border-x-2 border-foreground dark:border-ring"
+        className="absolute inset-0 border-x-6 -mx-1.5 border-foreground dark:border-ring pointer-events-none"
         aria-hidden="true"
       />
     </div>

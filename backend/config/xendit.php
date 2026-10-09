@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/inventory.php';
+
 require_once __DIR__ . '/../config.php';
 
 class XenditException extends RuntimeException
@@ -150,13 +152,22 @@ function xenditApplyInvoice(PDO $pdo, string $orderId, array $invoice): void
             $update = $pdo->prepare("UPDATE orders SET payment_status = 'expired', cancelled_at = IF(status = 'pending', NOW(), cancelled_at), cancel_reason = IF(status = 'pending', 'Online payment expired', cancel_reason), status = IF(status = 'pending', 'cancelled', status) WHERE id = :id");
             $update->execute(['id' => $orderId]);
             if ($cancel) {
-                $items = $pdo->prepare('SELECT product_id, variant_id, qty FROM order_items WHERE order_id = :id');
+                $items = $pdo->prepare('SELECT id, product_id, variant_id, qty FROM order_items WHERE order_id = :id');
                 $items->execute(['id' => $orderId]);
                 foreach ($items->fetchAll(PDO::FETCH_ASSOC) as $item) {
-                    $restore = $item['variant_id'] !== null
-                        ? $pdo->prepare('UPDATE variants SET stock = stock + :qty WHERE id = :id')
-                        : $pdo->prepare('UPDATE products SET stock = stock + :qty WHERE id = :id');
-                    $restore->execute(['qty' => $item['qty'], 'id' => $item['variant_id'] ?? $item['product_id']]);
+                    if ($item['product_id'] !== null) {
+                        changeInventoryStock(
+                            $pdo,
+                            (string) $item['product_id'],
+                            $item['variant_id'] !== null ? (string) $item['variant_id'] : null,
+                            (int) $item['qty'],
+                            'Online payment expired: stock restored',
+                            null,
+                            $orderId,
+                            (string) $item['id'],
+                            'order-cancel-restore:' . $item['id']
+                        );
+                    }
                 }
                 $history = $pdo->prepare('INSERT INTO order_status_history (order_id, status, note) VALUES (:id, :status, :note)');
                 $history->execute(['id' => $orderId, 'status' => 'cancelled', 'note' => 'Online payment expired']);

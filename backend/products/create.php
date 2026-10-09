@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../config/inventory.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -37,8 +38,7 @@ if (empty($_SESSION['user_id'])) {
 }
 
 $pdo = getDatabaseConnection();
-
-requireAdmin($pdo);
+$actorId = requireAdmin($pdo);
 
 $data = json_decode(file_get_contents('php://input'), true);
 
@@ -56,7 +56,10 @@ $slug = trim((string)($data['slug'] ?? ''));
 $priceCents = filter_var($data['price_cents'] ?? null, FILTER_VALIDATE_INT);
 $stock = filter_var($data['stock'] ?? null, FILTER_VALIDATE_INT);
 $categoryId = !empty($data['category_id']) ? $data['category_id'] : null;
-$sku = !empty($data['sku']) ? trim((string)$data['sku']) : null;
+$lowStockThreshold = filter_var(
+    $data['low_stock_threshold'] ?? 5,
+    FILTER_VALIDATE_INT
+);
 $description = !empty($data['description']) ? trim((string)$data['description']) : null;
 $imgUrl = !empty($data['img_url']) ? trim((string)$data['img_url']) : null;
 $modelUrl = isset($data['model_url']) && $data['model_url'] !== '' ? (is_string($data['model_url']) ? trim($data['model_url']) : false) : null;
@@ -65,7 +68,7 @@ $weightG = $weightG === null || $weightG === '' ? null : filter_var($weightG, FI
 $specs = $data['specs'] ?? null;
 $tags = $data['tags'] ?? null;
 
-if (($modelUrl === false) || ($weightG === false) || ($weightG !== null && $weightG < 0) || ($specs !== null && (!is_array($specs) || array_is_list($specs))) || ($tags !== null && (!is_array($tags) || !array_is_list($tags))) || (is_array($tags) && count(array_filter($tags, 'is_string')) !== count($tags))) {
+if (($modelUrl === false) || ($weightG === false) || ($weightG !== null && $weightG < 0) || $lowStockThreshold === false || $lowStockThreshold < 0 || ($specs !== null && (!is_array($specs) || array_is_list($specs))) || ($tags !== null && (!is_array($tags) || !array_is_list($tags))) || (is_array($tags) && count(array_filter($tags, 'is_string')) !== count($tags))) {
     http_response_code(422); echo json_encode(['success'=>false,'message'=>'Invalid model_url, weight_g, specs, or tags.']); exit;
 }
 
@@ -103,46 +106,46 @@ if ($stmt->fetch()) {
     exit;
 }
 
-if ($sku !== null) {
+$id = bin2hex(random_bytes(16));
+$sku = generateProductSku($pdo);
+
+$pdo->beginTransaction();
+try {
     $stmt = $pdo->prepare(
-        'SELECT id FROM products WHERE sku = :sku LIMIT 1'
+        'INSERT INTO products
+        (id, name, slug, price_cents, stock, description, img_url, category_id, sku,
+         model_url, weight_g, specs, tags, low_stock_threshold)
+        VALUES
+        (:id, :name, :slug, :price_cents, 0, :description, :img_url, :category_id, :sku,
+         :model_url, :weight_g, :specs, :tags, :low_stock_threshold)'
     );
+
     $stmt->execute([
-        'sku' => $sku
+        'id' => $id,
+        'name' => $name,
+        'slug' => $slug,
+        'price_cents' => $priceCents,
+        'description' => $description,
+        'img_url' => $imgUrl,
+        'category_id' => $categoryId,
+        'sku' => $sku,
+        'model_url' => $modelUrl,
+        'weight_g' => $weightG,
+        'specs' => $specs === null ? null : json_encode($specs, JSON_UNESCAPED_UNICODE),
+        'tags' => $tags === null ? null : json_encode($tags, JSON_UNESCAPED_UNICODE),
+        'low_stock_threshold' => $lowStockThreshold,
     ]);
 
-    if ($stmt->fetch()) {
-        http_response_code(409);
-        echo json_encode([
-            'success' => false,
-            'message' => 'A product with this SKU already exists.'
-        ]);
-        exit;
+    if ($stock > 0) {
+        changeInventoryStock($pdo, $id, null, $stock, 'Initial stock on product creation.', $actorId);
     }
+    $pdo->commit();
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    throw $e;
 }
-
-$id = bin2hex(random_bytes(16));
-
-$stmt = $pdo->prepare(
-    'INSERT INTO products
-    (id, name, slug, price_cents, stock, description, img_url, category_id, sku, model_url, weight_g, specs, tags)
-    VALUES
-    (:id, :name, :slug, :price_cents, :stock, :description, :img_url, :category_id, :sku, :model_url, :weight_g, :specs, :tags)'
-);
-
-$stmt->execute([
-    'id' => $id,
-    'name' => $name,
-    'slug' => $slug,
-    'price_cents' => $priceCents,
-    'stock' => $stock,
-    'description' => $description,
-    'img_url' => $imgUrl,
-    'category_id' => $categoryId,
-    'sku' => $sku, 'model_url' => $modelUrl, 'weight_g' => $weightG,
-    'specs' => $specs === null ? null : json_encode($specs, JSON_UNESCAPED_UNICODE),
-    'tags' => $tags === null ? null : json_encode($tags, JSON_UNESCAPED_UNICODE)
-]);
 
 $stmt = $pdo->prepare(
     'SELECT p.*, c.name AS category_name
@@ -159,6 +162,11 @@ $stmt->execute([
 $product = $stmt->fetch();
 $product['specs'] = $product['specs'] === null ? null : json_decode($product['specs'], true);
 $product['tags'] = $product['tags'] === null ? null : json_decode($product['tags'], true);
+$product['price_cents'] = (int) $product['price_cents'];
+$product['stock'] = (int) $product['stock'];
+$product['low_stock_threshold'] = (int) $product['low_stock_threshold'];
+$product['availability'] = inventoryAvailability($product['stock'], $product['low_stock_threshold']);
+$product['is_low_stock'] = $product['availability'] === 'low_stock';
 
 echo json_encode([
     'success' => true,

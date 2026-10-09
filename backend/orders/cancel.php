@@ -28,6 +28,7 @@ if (empty($_SESSION['user_id'])) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../config/inventory.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 if (!is_array($input)) {
@@ -85,18 +86,24 @@ try {
     }
 
     $itemsQuery = $pdo->prepare(
-        'SELECT product_id, variant_id, qty
+        'SELECT id, product_id, variant_id, qty
          FROM order_items
          WHERE order_id = :order_id'
     );
     $itemsQuery->execute(['order_id' => $orderId]);
     foreach ($itemsQuery->fetchAll(PDO::FETCH_ASSOC) as $item) {
-        if ($item['variant_id'] !== null) {
-            $restore = $pdo->prepare('UPDATE variants SET stock = stock + :qty WHERE id = :id');
-            $restore->execute(['qty' => $item['qty'], 'id' => $item['variant_id']]);
-        } elseif ($item['product_id'] !== null) {
-            $restore = $pdo->prepare('UPDATE products SET stock = stock + :qty WHERE id = :id');
-            $restore->execute(['qty' => $item['qty'], 'id' => $item['product_id']]);
+        if ($item['product_id'] !== null) {
+            changeInventoryStock(
+                $pdo,
+                (string) $item['product_id'],
+                $item['variant_id'] !== null ? (string) $item['variant_id'] : null,
+                (int) $item['qty'],
+                'Order cancelled: stock restored',
+                (string) $_SESSION['user_id'],
+                $orderId,
+                (string) $item['id'],
+                'order-cancel-restore:' . $item['id']
+            );
         }
     }
 

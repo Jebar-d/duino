@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+session_start();
 header("Access-Control-Allow-Origin: http://localhost:3000");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: PUT, POST, OPTIONS");
@@ -26,8 +27,10 @@ if (
 }
 
 require_once __DIR__ . "/../config/database.php";
+require_once __DIR__ . "/../config/auth.php";
 
 $pdo = getDatabaseConnection();
+requireAdmin($pdo);
 
 $input = json_decode(
     file_get_contents("php://input"),

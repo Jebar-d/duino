@@ -22,10 +22,11 @@ if (!in_array($_SERVER['REQUEST_METHOD'], ['PUT', 'POST'], true)) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../config/inventory.php';
 
 try {
     $pdo = getDatabaseConnection();
-    requireAdmin($pdo);
+    $actorId = requireAdmin($pdo);
 
     $input = json_decode(file_get_contents('php://input'), true);
     if (!is_array($input)) {
@@ -57,9 +58,10 @@ try {
         exit;
     }
 
-    $product = $pdo->prepare('SELECT id FROM products WHERE id = :id LIMIT 1');
+    $product = $pdo->prepare('SELECT id, low_stock_threshold FROM products WHERE id = :id LIMIT 1');
     $product->execute(['id' => $productId]);
-    if (!$product->fetchColumn()) {
+    $productRow = $product->fetch(PDO::FETCH_ASSOC);
+    if (!$productRow) {
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Product not found.']);
         exit;
@@ -86,6 +88,42 @@ try {
         exit;
     }
 
+    $pdo->beginTransaction();
+    $currentQuery = $pdo->prepare('SELECT product_id, stock FROM variants WHERE id = :id FOR UPDATE');
+    $currentQuery->execute(['id' => $variantId]);
+    $current = $currentQuery->fetch(PDO::FETCH_ASSOC);
+    if (!$current) {
+        $pdo->rollBack();
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Variant not found.']);
+        exit;
+    }
+
+    $currentStock = (int) $current['stock'];
+    $movingProduct = (string) $current['product_id'] !== $productId;
+    if ($movingProduct && $currentStock > 0 && $current['product_id'] !== null) {
+        changeInventoryStock(
+            $pdo,
+            (string) $current['product_id'],
+            $variantId,
+            -$currentStock,
+            'Variant moved to another product.',
+            $actorId,
+            null,
+            null,
+            'variant-move-out:' . $variantId
+        );
+    } elseif (!$movingProduct && $currentStock !== $stock) {
+        changeInventoryStock(
+            $pdo,
+            $productId,
+            $variantId,
+            $stock - $currentStock,
+            'Variant stock adjusted by admin.',
+            $actorId
+        );
+    }
+
     $update = $pdo->prepare(
         'UPDATE variants
          SET product_id = :product_id,
@@ -100,18 +138,30 @@ try {
         'variant_name' => $variantName,
         'option_value' => $optionValue,
         'price_adjustment' => $priceAdjustment,
-        'stock' => $stock,
+        'stock' => $movingProduct ? 0 : $stock,
         'id' => $variantId,
     ]);
     if ($update->rowCount() === 0) {
         $exists = $pdo->prepare('SELECT id FROM variants WHERE id = :id LIMIT 1');
         $exists->execute(['id' => $variantId]);
         if (!$exists->fetchColumn()) {
+            $pdo->rollBack();
             http_response_code(404);
             echo json_encode(['success' => false, 'message' => 'Variant not found.']);
             exit;
         }
     }
+    if ($movingProduct && $stock > 0) {
+        changeInventoryStock(
+            $pdo,
+            $productId,
+            $variantId,
+            $stock,
+            'Variant stock received after product move.',
+            $actorId
+        );
+    }
+    $pdo->commit();
 
     echo json_encode([
         'success' => true,
@@ -123,9 +173,13 @@ try {
             'option_value' => $optionValue,
             'price_adjustment' => $priceAdjustment,
             'stock' => $stock,
+            'availability' => inventoryAvailability($stock, (int) $productRow['low_stock_threshold']),
         ],
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log('Variant update error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Unable to update variant.']);

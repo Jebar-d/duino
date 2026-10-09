@@ -162,9 +162,9 @@ export function DashboardView({
       <div className="adm-qgrid">
         <QuickCard
           icon={Package}
-          title="Products"
-          description="Add, edit, remove items from your catalog."
-          onClick={() => onTab("products")}
+          title="Inventory"
+          description="Manage products, categories, and stock quantities."
+          onClick={() => onTab("inventory")}
         />
 
         <QuickCard

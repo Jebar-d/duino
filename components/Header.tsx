@@ -7,7 +7,7 @@ import { apiFetch } from "../lib/api";
 import { useSession } from "./SessionProvider";
 import { Button } from "./ui/8bit/button";
 import { Badge } from "./ui/8bit/badge";
-import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from "./ui/8bit/drawer";
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle, DrawerTrigger } from "./ui/8bit/drawer";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/8bit/dropdown-menu";
 
 export default function Header() {
@@ -286,16 +286,17 @@ export default function Header() {
             <span className="s-brand-name">Arduino Store</span>
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="s-close-btn"
-            onClick={() => setMenuOpen(false)}
-            title="Close"
-            aria-label="Close menu"
-          >
-            ×
-          </Button>
+          <DrawerClose asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="s-close-btn"
+              title="Close"
+              aria-label="Close menu"
+            >
+              ×
+            </Button>
+          </DrawerClose>
         </div>
 
         <div className="sidebar-auth">
@@ -499,4 +500,3 @@ export default function Header() {
     </>
   );
 }
-

@@ -43,8 +43,8 @@ const itemVariants = cva(
         muted: "bg-muted/50",
       },
       size: {
-        default: "p-3 gap-3",
-        sm: "py-2 px-3 gap-2",
+        default: "p-4 gap-4 ",
+        sm: "py-3 px-4 gap-2.5",
       },
       font: {
         normal: "",
@@ -54,7 +54,7 @@ const itemVariants = cva(
     defaultVariants: {
       variant: "default",
       size: "default",
-      font: "normal",
+      font: "retro",
     },
   }
 );
@@ -62,8 +62,8 @@ const itemVariants = cva(
 function Item({
   className,
   variant = "default",
-  size = "sm",
-  font = "normal",
+  size = "default",
+  font = "retro",
   asChild = false,
   ...props
 }: React.ComponentProps<"div"> &
@@ -131,7 +131,7 @@ function ItemTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="item-title"
       className={cn(
-        "retro flex w-fit items-center gap-2 text-xs leading-snug font-medium",
+        "flex w-fit items-center gap-2 text-sm leading-snug font-medium",
         className
       )}
       {...props}

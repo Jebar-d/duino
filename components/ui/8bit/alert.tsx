@@ -29,13 +29,7 @@ export interface BitAlertProps
   extends React.ComponentProps<"div">,
     VariantProps<typeof alertVariants> {}
 
-function Alert({
-  children,
-  className,
-  font = "normal",
-  variant,
-  ...props
-}: BitAlertProps) {
+function Alert({ children, className, font, variant, ...props }: BitAlertProps) {
   return (
     <div className="relative">
       <ShadcnAlert
@@ -50,18 +44,18 @@ function Alert({
         {children}
       </ShadcnAlert>
 
-      <div className="absolute -top-1 left-1 h-1 w-1/2 bg-foreground dark:bg-ring" />
-      <div className="absolute -top-1 right-1 h-1 w-1/2 bg-foreground dark:bg-ring" />
-      <div className="absolute -bottom-1 left-1 h-1 w-1/2 bg-foreground dark:bg-ring" />
-      <div className="absolute -bottom-1 right-1 h-1 w-1/2 bg-foreground dark:bg-ring" />
-      <div className="absolute top-0 left-0 size-1 bg-foreground dark:bg-ring" />
-      <div className="absolute top-0 right-0 size-1 bg-foreground dark:bg-ring" />
-      <div className="absolute bottom-0 left-0 size-1 bg-foreground dark:bg-ring" />
-      <div className="absolute right-0 bottom-0 size-1 bg-foreground dark:bg-ring" />
-      <div className="absolute top-1 -left-1 h-1/2 w-1 bg-foreground dark:bg-ring" />
-      <div className="absolute bottom-1 -left-1 h-1/2 w-1 bg-foreground dark:bg-ring" />
-      <div className="absolute top-1 -right-1 h-1/2 w-1 bg-foreground dark:bg-ring" />
-      <div className="absolute right-1 bottom-1 h-1/2 w-1 bg-foreground dark:bg-ring" />
+      <div className="absolute -top-1.5 w-1/2 left-1.5 h-1.5 bg-foreground dark:bg-ring" />
+      <div className="absolute -top-1.5 w-1/2 right-1.5 h-1.5 bg-foreground dark:bg-ring" />
+      <div className="absolute -bottom-1.5 w-1/2 left-1.5 h-1.5 bg-foreground dark:bg-ring" />
+      <div className="absolute -bottom-1.5 w-1/2 right-1.5 h-1.5 bg-foreground dark:bg-ring" />
+      <div className="absolute top-0 left-0 size-1.5 bg-foreground dark:bg-ring" />
+      <div className="absolute top-0 right-0 size-1.5 bg-foreground dark:bg-ring" />
+      <div className="absolute bottom-0 left-0 size-1.5 bg-foreground dark:bg-ring" />
+      <div className="absolute bottom-0 right-0 size-1.5 bg-foreground dark:bg-ring" />
+      <div className="absolute top-1.5 -left-1.5 h-1/2 w-1.5 bg-foreground dark:bg-ring" />
+      <div className="absolute bottom-1.5 -left-1.5 h-1/2 w-1.5 bg-foreground dark:bg-ring" />
+      <div className="absolute top-1.5 -right-1.5 h-1/2 w-1.5 bg-foreground dark:bg-ring" />
+      <div className="absolute bottom-1.5 -right-1.5 h-1/2 w-1.5 bg-foreground dark:bg-ring" />
     </div>
   );
 }
@@ -72,7 +66,7 @@ function AlertTitle({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <ShadcnAlertTitle
-      className={cn("retro line-clamp-1 text-xs font-medium tracking-tight", className)}
+      className={cn("line-clamp-1 font-medium tracking-tight", className)}
       {...props}
     />
   );

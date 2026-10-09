@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/inventory.php';
 
 $slug = trim($_GET['slug'] ?? '');
 
@@ -58,6 +59,7 @@ try {
             p.tags,
             p.weight_g,
             p.sku,
+            p.low_stock_threshold,
             c.name AS category_name,
             c.slug AS category_slug
         FROM products p
@@ -124,17 +126,22 @@ try {
 
     $product['price_cents'] = (int) $product['price_cents'];
     $product['stock'] = (int) $product['stock'];
+    $product['low_stock_threshold'] = (int) $product['low_stock_threshold'];
+    $product['availability'] = inventoryAvailability($product['stock'], $product['low_stock_threshold']);
+    $product['is_low_stock'] = $product['availability'] === 'low_stock';
 
     if ($product['weight_g'] !== null) {
         $product['weight_g'] = (int) $product['weight_g'];
     }
 
-    $variants = $db->prepare('SELECT id, product_id, variant_name, option_value, price_adjustment, stock, img_url FROM variants WHERE product_id = :product_id ORDER BY variant_name, option_value');
+    $variants = $db->prepare('SELECT v.id, v.product_id, v.variant_name, v.option_value, v.price_adjustment, v.stock, v.img_url, p.low_stock_threshold FROM variants v INNER JOIN products p ON p.id = v.product_id WHERE v.product_id = :product_id ORDER BY v.variant_name, v.option_value');
     $variants->execute(['product_id' => $product['id']]);
     $product['variants'] = $variants->fetchAll();
     foreach ($product['variants'] as &$variant) {
         $variant['price_adjustment'] = (int) $variant['price_adjustment'];
         $variant['stock'] = (int) $variant['stock'];
+        $variant['low_stock_threshold'] = (int) $variant['low_stock_threshold'];
+        $variant['availability'] = inventoryAvailability($variant['stock'], $variant['low_stock_threshold']);
     }
     unset($variant);
 

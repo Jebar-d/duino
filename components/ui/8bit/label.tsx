@@ -19,7 +19,7 @@ export const inputVariants = cva("", {
     },
   },
   defaultVariants: {
-    font: "normal",
+    font: "retro",
   },
 });
 
@@ -29,7 +29,7 @@ interface BitLabelProps
   asChild?: boolean;
 }
 
-function Label({ className, font = "normal", ...props }: BitLabelProps) {
+function Label({ className, font, ...props }: BitLabelProps) {
   return (
     <ShadcnLabel
       className={cn(className, font !== "normal" && "retro")}

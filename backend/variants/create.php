@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../config/inventory.php';
 
 try {
     $pdo = getDatabaseConnection();
@@ -55,9 +56,10 @@ try {
         exit;
     }
 
-    $product = $pdo->prepare('SELECT id FROM products WHERE id = :id LIMIT 1');
+    $product = $pdo->prepare('SELECT id, low_stock_threshold FROM products WHERE id = :id LIMIT 1');
     $product->execute(['id' => $productId]);
-    if (!$product->fetchColumn()) {
+    $productRow = $product->fetch(PDO::FETCH_ASSOC);
+    if (!$productRow) {
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Product not found.']);
         exit;
@@ -83,11 +85,12 @@ try {
     }
 
     $variantId = newUuid();
+    $pdo->beginTransaction();
     $insert = $pdo->prepare(
         'INSERT INTO variants
             (id, product_id, variant_name, option_value, price_adjustment, stock)
          VALUES
-            (:id, :product_id, :variant_name, :option_value, :price_adjustment, :stock)'
+            (:id, :product_id, :variant_name, :option_value, :price_adjustment, 0)'
     );
     $insert->execute([
         'id' => $variantId,
@@ -95,8 +98,18 @@ try {
         'variant_name' => $variantName,
         'option_value' => $optionValue,
         'price_adjustment' => $priceAdjustment,
-        'stock' => $stock,
     ]);
+    if ($stock > 0) {
+        changeInventoryStock(
+            $pdo,
+            $productId,
+            $variantId,
+            $stock,
+            'Initial variant stock.',
+            (string) $_SESSION['user_id']
+        );
+    }
+    $pdo->commit();
 
     echo json_encode([
         'success' => true,
@@ -107,10 +120,14 @@ try {
             'option_value' => $optionValue,
             'price_adjustment' => $priceAdjustment,
             'stock' => $stock,
+            'availability' => inventoryAvailability($stock, (int) $productRow['low_stock_threshold']),
             'img_url' => null,
         ],
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log('Variant creation error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Unable to create variant.']);

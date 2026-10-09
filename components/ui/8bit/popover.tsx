@@ -26,7 +26,7 @@ export const popOverVariants = cva("", {
     },
   },
   defaultVariants: {
-    font: "normal",
+    font: "retro",
   },
 });
 
@@ -36,14 +36,14 @@ export interface BitPopoverProps
 
 function PopoverContent({
   children,
-  font = "normal",
+  font,
   className,
   ...props
 }: BitPopoverProps) {
   return (
     <ShadcnPopoverContent
       className={cn(
-        "relative bg-card border-y-2 border-foreground dark:border-ring rounded-none mt-1 text-sm",
+        "relative bg-card border-y-6 border-foreground dark:border-ring rounded-none mt-1",
         font !== "normal" && "retro",
         className
       )}
@@ -52,7 +52,7 @@ function PopoverContent({
       {children}
 
       <div
-        className="pointer-events-none absolute inset-0 border-x-2 border-foreground dark:border-ring"
+        className="absolute inset-0 border-x-6 -mx-1.5 border-foreground dark:border-ring pointer-events-none"
         aria-hidden="true"
       />
     </ShadcnPopoverContent>

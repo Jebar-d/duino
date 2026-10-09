@@ -1,27 +1,1928 @@
 ﻿"use client";
 
-import "./admin.css";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { apiFetch, API_BASE } from "../../lib/api";
+import {
+  getProductImageUrl,
+  handleProductImageError,
+} from "../../lib/product-assets";
+import { getPromoStatus } from "../../lib/promo-status";
+import { Activity, Banknote, BarChart3, Box, ChartNoAxesColumnIncreasing, KeyRound, LayoutDashboard, LogOut, Mail, Package, Percent, RotateCcw, TicketPercent, Truck, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-import { useCallback, useEffect, useState } from "react";
-import { toast as sonnerToast } from "sonner";
-import { apiFetch } from "../../lib/api";
-import { Button } from "@/components/ui/8bit/button";
-import { Input } from "@/components/ui/8bit/input";
-import { Label } from "@/components/ui/8bit/label";
-import { Skeleton } from "@/components/ui/8bit/skeleton";
-import type { Tab, User } from "./_components/types";
-import { tabs } from "./_components/navigation";
-import { AdminSidebar } from "./_components/AdminSidebar";
-import { AnalyticsView } from "./_components/AnalyticsView";
-import { CategoriesView } from "./_components/CategoriesView";
-import { DashboardView } from "./_components/DashboardView";
-import { MessagesView } from "./_components/MessagesView";
-import { OrdersView } from "./_components/OrdersView";
-import { PlaceholderView } from "./_components/PlaceholderView";
-import { ProductsView } from "./_components/ProductsView";
-import { PromosView } from "./_components/PromosView";
-import { RefundsView } from "./_components/RefundsView";
-import { UsersView } from "./_components/UsersView";
+const ProductModelViewer = dynamic(
+  () => import("../../components/ProductModelViewer"),
+  {
+    ssr: false,
+    loading: () => <div className="product-model-loading">Loading 3D model...</div>,
+  },
+);
+
+type User = {
+  id: string;
+  email?: string | null;
+  username?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  is_admin?: boolean;
+  role?: string;
+};
+
+type Category = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+type Promo = {
+  id: string;
+  code: string;
+  discount_percent: number;
+  valid_from: string;
+  valid_until: string;
+  expiration_at?: string | null;
+  status?: string | null;
+  is_expired?: boolean;
+  max_uses: number | null;
+  used_count: number;
+  is_free_shipping: boolean;
+  min_order_cents: number;
+  description: string | null;
+};
+
+type Product = {
+  id: string;
+  name: string;
+  slug: string;
+  price_cents: number;
+  stock: number;
+  description?: string | null;
+  img_url?: string | null;
+  model_url?: string | null;
+  category_id?: string | null;
+  sku?: string | null;
+  category_name?: string | null;
+  low_stock_threshold?: number;
+  availability?: "in_stock" | "low_stock" | "out_of_stock" | string;
+  is_low_stock?: boolean;
+  variants?: ProductVariant[];
+};
+
+type ProductVariant = {
+  id?: string;
+  product_id?: string;
+  variant_name: string;
+  option_value: string;
+  price_adjustment: number;
+  stock: number;
+  availability?: "in_stock" | "low_stock" | "out_of_stock" | string;
+  low_stock_threshold?: number;
+};
+
+type LowStockItem = {
+  product_id: string;
+  variant_id?: string | null;
+  product_name: string;
+  sku?: string | null;
+  stock: number;
+  low_stock_threshold: number;
+  item_type: string;
+  availability: string;
+  is_low_stock: boolean;
+};
+
+type InventoryTransaction = {
+  id: string;
+  product_id: string;
+  variant_id?: string | null;
+  order_id?: string | null;
+  order_item_id?: string | null;
+  movement_type: "IN" | "OUT" | string;
+  quantity: number;
+  stock_before: number;
+  stock_after: number;
+  reason?: string | null;
+  actor_id?: string | null;
+  idempotency_key?: string | null;
+  created_at: string;
+  product_name?: string | null;
+  sku?: string | null;
+  variant_name?: string | null;
+  option_value?: string | null;
+  actor_email?: string | null;
+};
+
+type Order = {
+  id: string;
+  total_cents: number;
+  status: string;
+  created_at: string;
+  payment_method?: string | null;
+  user_id?: string | null;
+  customer_email?: string | null;
+};
+
+type DashboardData = {
+  product_count: number;
+  order_count: number;
+  user_count: number;
+  promo_count: number;
+  revenue_cents: number;
+  recent_orders: Order[];
+};
+
+type AnalyticsData = {
+  total_revenue_cents: number;
+  month_revenue_cents: number;
+  total_orders: number;
+  paid_orders: number;
+  pending_orders: number;
+  cancelled_orders: number;
+  monthly_revenue: {
+    label: string;
+    revenue_cents: number;
+    order_count: number;
+  }[];
+  payment_methods: {
+    method: string;
+    count: number;
+  }[];
+  order_statuses: {
+    status: string;
+    count: number;
+  }[];
+  top_products: {
+    name: string;
+    img_url?: string | null;
+    qty: number;
+    revenue_cents: number;
+  }[];
+};
+
+type RawAnalytics = Partial<Omit<AnalyticsData, "monthly_revenue" | "top_products">> & {
+  monthly_revenue?: {
+    month?: string;
+    label?: string;
+    revenue_cents?: number;
+    order_count?: number;
+  }[];
+  top_products?: {
+    name?: string;
+    product_name?: string;
+    img_url?: string | null;
+    qty?: number;
+    units_sold?: number;
+    revenue_cents?: number;
+  }[];
+};
+
+function monthLabel(value: string) {
+  const [year, month] = value.split("-").map(Number);
+
+  if (!year || !month) {
+    return value;
+  }
+
+  return new Date(year, month - 1, 1).toLocaleString("en-US", {
+    month: "short",
+    year: "numeric",
+  });
+}
+
+// Accepts both the old and the new backend field names so the charts never
+// get an undefined key/label.
+function normalizeAnalytics(raw: RawAnalytics | null | undefined): AnalyticsData {
+  const monthlyRevenue = Array.isArray(raw?.monthly_revenue)
+    ? raw.monthly_revenue
+    : [];
+  const paymentMethods = Array.isArray(raw?.payment_methods)
+    ? raw.payment_methods
+    : [];
+  const orderStatuses = Array.isArray(raw?.order_statuses)
+    ? raw.order_statuses
+    : [];
+  const topProducts = Array.isArray(raw?.top_products) ? raw.top_products : [];
+
+  return {
+    total_revenue_cents: raw?.total_revenue_cents ?? 0,
+    month_revenue_cents: raw?.month_revenue_cents ?? 0,
+    total_orders: raw?.total_orders ?? 0,
+    paid_orders: raw?.paid_orders ?? 0,
+    pending_orders: raw?.pending_orders ?? 0,
+    cancelled_orders: raw?.cancelled_orders ?? 0,
+    monthly_revenue: monthlyRevenue.map((item, index) => ({
+      label: item.label ?? (item.month ? monthLabel(item.month) : `Month ${index + 1}`),
+      revenue_cents: item.revenue_cents ?? 0,
+      order_count: item.order_count ?? 0,
+    })),
+    payment_methods: paymentMethods,
+    order_statuses: orderStatuses,
+    top_products: topProducts.map((item) => ({
+      name: item.name ?? item.product_name ?? "Unknown product",
+      img_url: item.img_url ?? null,
+      qty: item.qty ?? item.units_sold ?? 0,
+      revenue_cents: item.revenue_cents ?? 0,
+    })),
+  };
+}
+
+type Tab =
+  | "dashboard"
+  | "analytics"
+  | "inventory"
+  | "promos"
+  | "orders"
+  | "users"
+  | "messages"
+  | "refunds"
+  | "admins";
+
+const tabs: {
+  id: Tab;
+  label: string;
+  icon: LucideIcon;
+  section?: string;
+}[] = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, section: "Overview" },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "inventory", label: "Inventory", icon: Package, section: "Catalog" },
+  { id: "promos", label: "Promos", icon: TicketPercent },
+  { id: "orders", label: "Orders", icon: Truck, section: "Manage" },
+  { id: "users", label: "Users", icon: Users },
+  { id: "messages", label: "Messages", icon: Mail },
+  { id: "refunds", label: "Refunds", icon: RotateCcw },
+  { id: "admins", label: "Admin Users", icon: KeyRound },
+];
+
+function money(cents: number) {
+  return `₱${(cents / 100).toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function moneyWhole(cents: number) {
+  return `₱${(cents / 100).toLocaleString("en-PH", {
+    maximumFractionDigits: 0,
+  })}`;
+}
+
+function escapeText(value: unknown) {
+  return String(value ?? "");
+}
+
+function statusClass(status: string) {
+  const value = status.toLowerCase();
+
+  if (value === "paid" || value === "delivered") {
+    return "b b-g";
+  }
+
+  if (value === "cancelled" || value === "rejected") {
+    return "b b-r";
+  }
+
+  if (value === "pending" || value === "processing") {
+    return "b b-o";
+  }
+
+  if (value === "shipped") {
+    return "b b-t";
+  }
+
+  return "b b-gray";
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return <span className={statusClass(status)}>{status}</span>;
+}
+
+function CategoriesView({
+  showToast,
+}: {
+  showToast: (message: string, type?: string) => void;
+}) {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+
+  async function loadCategories() {
+    try {
+      setLoadingCategories(true);
+
+      const data = await apiFetch<{
+        success: boolean;
+        categories: Category[];
+      }>("/categories/list.php");
+
+      setCategories(data.categories ?? []);
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to load categories.",
+        "error",
+      );
+    } finally {
+      setLoadingCategories(false);
+    }
+  }
+
+  useEffect(() => {
+    async function load() {
+      await loadCategories();
+    }
+
+    load();
+  }, []);
+
+  function resetForm() {
+    setEditingId(null);
+    setName("");
+    setSlug("");
+  }
+
+  function startEdit(category: Category) {
+    setEditingId(category.id);
+    setName(category.name);
+    setSlug(category.slug);
+  }
+
+  function makeSlug(value: string) {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  function handleNameChange(value: string) {
+    setName(value);
+
+    if (!editingId) {
+      setSlug(makeSlug(value));
+    }
+  }
+
+  async function saveCategory() {
+    if (!name.trim()) {
+      showToast("Category name is required.", "error");
+      return;
+    }
+
+    if (!slug.trim()) {
+      showToast("Category slug is required.", "error");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      if (editingId) {
+        await apiFetch("/categories/update.php", {
+          method: "POST",
+          body: JSON.stringify({
+            id: editingId,
+            name: name.trim(),
+            slug: slug.trim(),
+          }),
+        });
+
+        showToast("Category updated successfully.", "success");
+      } else {
+        await apiFetch("/categories/create.php", {
+          method: "POST",
+          body: JSON.stringify({
+            name: name.trim(),
+            slug: slug.trim(),
+          }),
+        });
+
+        showToast("Category created successfully.", "success");
+      }
+
+      resetForm();
+      await loadCategories();
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to save category.",
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteCategory(categoryId: string, categoryName: string) {
+    const confirmed = window.confirm(`Delete category "${categoryName}"?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await apiFetch("/categories/delete.php", {
+        method: "POST",
+        body: JSON.stringify({
+          id: categoryId,
+        }),
+      });
+
+      showToast("Category deleted successfully.", "success");
+
+      if (editingId === categoryId) {
+        resetForm();
+      }
+
+      await loadCategories();
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to delete category.",
+        "error",
+      );
+    }
+  }
+
+  return (
+    <div className="admin-content">
+      <div className="admin-page-header">
+        <div>
+          <h1>Categories</h1>
+          <p>Manage product categories for your store.</p>
+        </div>
+      </div>
+
+      <div className="admin-grid-2">
+        <section className="admin-card">
+          <div className="admin-card-header">
+            <div>
+              <h2>{editingId ? "Edit Category" : "Add Category"}</h2>
+              <p>
+                {editingId
+                  ? "Update the selected category."
+                  : "Create a new product category."}
+              </p>
+            </div>
+          </div>
+
+          <div className="admin-form">
+            <label>
+              <span>Name</span>
+              <input
+                value={name}
+                onChange={(event) => handleNameChange(event.target.value)}
+                placeholder="e.g. Arduino Boards"
+              />
+            </label>
+
+            <label>
+              <span>Slug</span>
+              <input
+                value={slug}
+                onChange={(event) => setSlug(event.target.value)}
+                placeholder="e.g. arduino-boards"
+              />
+            </label>
+
+            <div className="admin-form-actions">
+              <button
+                type="button"
+                className="admin-primary-button"
+                onClick={saveCategory}
+                disabled={saving}
+              >
+                {saving
+                  ? "Saving..."
+                  : editingId
+                    ? "Update Category"
+                    : "Add Category"}
+              </button>
+
+              {editingId && (
+                <button
+                  type="button"
+                  className="admin-secondary-button"
+                  onClick={resetForm}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="admin-card">
+          <div className="admin-card-header">
+            <div>
+              <h2>Categories</h2>
+              <p>{categories.length} categories</p>
+            </div>
+          </div>
+
+          {loadingCategories ? (
+            <div className="admin-empty-state">Loading categories...</div>
+          ) : categories.length === 0 ? (
+            <div className="admin-empty-state">No categories found.</div>
+          ) : (
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Slug</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {categories.map((category) => (
+                    <tr key={category.id}>
+                      <td>
+                        <strong>{category.name}</strong>
+                      </td>
+
+                      <td>
+                        <code>{category.slug}</code>
+                      </td>
+
+                      <td>
+                        <div className="admin-table-actions">
+                          <button
+                            type="button"
+                            className="admin-small-button"
+                            onClick={() => startEdit(category)}
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            className="admin-small-button admin-danger-button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              void deleteCategory(category.id, category.name);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function PromosView({
+  showToast,
+}: {
+  showToast: (message: string, type?: string) => void;
+}) {
+  const [promos, setPromos] = useState<Promo[]>([]);
+  const [loadingPromos, setLoadingPromos] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [discountPercent, setDiscountPercent] = useState("0");
+  const [validFrom, setValidFrom] = useState("");
+  const [validUntil, setValidUntil] = useState("");
+  const [maxUses, setMaxUses] = useState("");
+  const [freeShipping, setFreeShipping] = useState(false);
+  const [minOrderAmount, setMinOrderAmount] = useState("0");
+  const [description, setDescription] = useState("");
+
+  const loadPromos = useCallback(async () => {
+    try {
+      setLoadingPromos(true);
+      const data = await apiFetch<{ success: boolean; promos: Promo[] }>(
+        "/promos/list.php",
+      );
+      setPromos(data.promos ?? []);
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to load promos.",
+        "error",
+      );
+    } finally {
+      setLoadingPromos(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void loadPromos();
+      }
+    };
+    const initialLoad = window.setTimeout(() => void loadPromos(), 0);
+    const interval = window.setInterval(() => void loadPromos(), 60_000);
+    window.addEventListener("focus", refreshWhenVisible);
+
+    return () => {
+      window.clearTimeout(initialLoad);
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshWhenVisible);
+    };
+  }, [loadPromos]);
+
+  function resetForm() {
+    setEditingId(null);
+    setCode("");
+    setDiscountPercent("0");
+    setValidFrom("");
+    setValidUntil("");
+    setMaxUses("");
+    setFreeShipping(false);
+    setMinOrderAmount("0");
+    setDescription("");
+  }
+
+  function toDateTimeInput(value: string) {
+    return value ? value.replace(" ", "T").slice(0, 16) : "";
+  }
+
+  function startEdit(promo: Promo) {
+    setEditingId(promo.id);
+    setCode(promo.code);
+    setDiscountPercent(String(promo.discount_percent));
+    setValidFrom(toDateTimeInput(promo.valid_from));
+    setValidUntil(toDateTimeInput(promo.valid_until));
+    setMaxUses(promo.max_uses === null ? "" : String(promo.max_uses));
+    setFreeShipping(promo.is_free_shipping);
+    setMinOrderAmount((promo.min_order_cents / 100).toFixed(2));
+    setDescription(promo.description ?? "");
+  }
+
+  function validateForm() {
+    const normalizedCode = code.trim().toUpperCase();
+    const discount = Number(discountPercent);
+    const minimum = Number(minOrderAmount);
+    const uses = maxUses.trim() === "" ? null : Number(maxUses);
+
+    if (!normalizedCode) {
+      showToast("Promo code is required.", "error");
+      return null;
+    }
+
+    if (!/^[A-Z0-9_-]+$/.test(normalizedCode)) {
+      showToast("Promo code may only contain letters, numbers, underscores, and hyphens.", "error");
+      return null;
+    }
+
+    if (!Number.isInteger(discount) || discount < 0 || discount > 100) {
+      showToast("Discount must be a whole number from 0 to 100.", "error");
+      return null;
+    }
+
+    if (!validFrom || !validUntil) {
+      showToast("Valid from and valid until dates are required.", "error");
+      return null;
+    }
+
+    if (new Date(validUntil).getTime() <= new Date(validFrom).getTime()) {
+      showToast("Valid until must be after valid from.", "error");
+      return null;
+    }
+
+    if (uses !== null && (!Number.isInteger(uses) || uses < 1)) {
+      showToast("Maximum uses must be a whole number of at least 1.", "error");
+      return null;
+    }
+
+    if (!Number.isFinite(minimum) || minimum < 0) {
+      showToast("Minimum order amount cannot be negative.", "error");
+      return null;
+    }
+
+    return {
+      code: normalizedCode,
+      discount_percent: discount,
+      valid_from: validFrom,
+      valid_until: validUntil,
+      max_uses: uses,
+      is_free_shipping: freeShipping,
+      min_order_cents: Math.round(minimum * 100),
+      description: description.trim(),
+    };
+  }
+
+  async function savePromo() {
+    const payload = validateForm();
+
+    if (!payload) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      if (editingId) {
+        await apiFetch("/promos/update.php", {
+          method: "POST",
+          body: JSON.stringify({ id: editingId, ...payload }),
+        });
+        showToast("Promo updated successfully.", "success");
+      } else {
+        await apiFetch("/promos/create.php", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        showToast("Promo created successfully.", "success");
+      }
+
+      resetForm();
+      await loadPromos();
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to save promo.",
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deletePromo(promo: Promo) {
+    if (!window.confirm(`Delete promo "${promo.code}"?`)) {
+      return;
+    }
+
+    try {
+      setDeletingId(promo.id);
+      await apiFetch("/promos/delete.php", {
+        method: "POST",
+        body: JSON.stringify({ id: promo.id }),
+      });
+      showToast("Promo deleted successfully.", "success");
+
+      if (editingId === promo.id) {
+        resetForm();
+      }
+
+      await loadPromos();
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to delete promo.",
+        "error",
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  return (
+    <div className="admin-content">
+      <div className="admin-page-header">
+        <div>
+          <h1>Promos</h1>
+          <p>Create and manage discount codes for your store.</p>
+        </div>
+      </div>
+
+      <div className="admin-grid-2">
+        <section className="admin-card">
+          <div className="admin-card-header">
+            <div>
+              <h2>{editingId ? "Edit Promo" : "Add Promo"}</h2>
+              <p>{editingId ? "Update the selected promotion." : "Create a new promotion."}</p>
+            </div>
+          </div>
+
+          <div className="admin-form">
+            <label>
+              <span>Promo Code</span>
+              <input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="e.g. SAVE10" />
+            </label>
+
+            <label>
+              <span>Discount Percentage</span>
+              <input type="number" min="0" max="100" step="1" value={discountPercent} onChange={(event) => setDiscountPercent(event.target.value)} />
+            </label>
+
+            <label>
+              <span>Valid From</span>
+              <input type="datetime-local" value={validFrom} onChange={(event) => setValidFrom(event.target.value)} />
+            </label>
+
+            <label>
+              <span>Valid Until</span>
+              <input type="datetime-local" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} />
+            </label>
+
+            <label>
+              <span>Maximum Uses</span>
+              <input type="number" min="1" step="1" value={maxUses} onChange={(event) => setMaxUses(event.target.value)} placeholder="Unlimited" />
+            </label>
+
+            <label>
+              <span>Minimum Order Amount (₱)</span>
+              <input type="number" min="0" step="0.01" value={minOrderAmount} onChange={(event) => setMinOrderAmount(event.target.value)} />
+            </label>
+
+            <label className="admin-checkbox-label">
+              <input type="checkbox" checked={freeShipping} onChange={(event) => setFreeShipping(event.target.checked)} />
+              <span>Free shipping</span>
+            </label>
+
+            <label>
+              <span>Description</span>
+              <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Optional promo details" rows={3} />
+            </label>
+
+            <div className="admin-form-actions">
+              <button type="button" className="admin-primary-button" onClick={savePromo} disabled={saving}>
+                {saving ? "Saving..." : editingId ? "Update Promo" : "Add Promo"}
+              </button>
+
+              {editingId && (
+                <button type="button" className="admin-secondary-button" onClick={resetForm} disabled={saving}>
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="admin-card">
+          <div className="admin-card-header">
+            <div>
+              <h2>Promos</h2>
+              <p>{promos.length} active promos</p>
+            </div>
+          </div>
+
+          {loadingPromos ? (
+            <div className="admin-empty-state">Loading promos...</div>
+          ) : promos.length === 0 ? (
+            <div className="admin-empty-state">No active promos found.</div>
+          ) : (
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Discount</th>
+                    <th>Validity</th>
+                    <th>Uses</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {promos.map((promo) => (
+                    <tr key={promo.id}>
+                      <td><strong>{promo.code}</strong>{promo.description && <div className="admin-promo-description">{promo.description}</div>}</td>
+                      <td>{promo.discount_percent}%{promo.is_free_shipping ? " + Free Shipping" : ""}<div className="admin-promo-description">Min. ₱{(promo.min_order_cents / 100).toFixed(2)}</div></td>
+                      <td>
+                        {new Date(promo.valid_from.replace(" ", "T")).toLocaleDateString("en-PH")} – {new Date((promo.expiration_at || promo.valid_until).replace(" ", "T")).toLocaleDateString("en-PH")}
+                        {" "}
+                        <span className={
+                          getPromoStatus(promo) === "expired"
+                            ? "b b-r"
+                            : getPromoStatus(promo) === "active"
+                              ? "b b-g"
+                              : "b b-o"
+                        }>
+                          {getPromoStatus(promo)}
+                        </span>
+                      </td>
+                      <td>{promo.used_count} / {promo.max_uses ?? "∞"}</td>
+                      <td>
+                        <div className="admin-table-actions">
+                          <button type="button" className="admin-small-button" onClick={() => startEdit(promo)} disabled={deletingId === promo.id}>Edit</button>
+                          <button type="button" className="admin-small-button admin-danger-button" onClick={() => void deletePromo(promo)} disabled={deletingId === promo.id}>
+                            {deletingId === promo.id ? "Deleting..." : "Delete"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+type OrderItemDetail = {
+  id: string;
+  product_id: string | null;
+  variant_id: string | null;
+  qty: number;
+  price_cents: number;
+  product_name: string | null;
+  product_img: string | null;
+  subtotal_cents: number;
+};
+
+type ShippingAddress = {
+  first_name?: string;
+  last_name?: string;
+  contact_number?: string;
+  address?: string;
+  address_line?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
+};
+
+type AdminOrder = {
+  id: string;
+  user_id: string | null;
+  customer_email?: string | null;
+  total_cents: number;
+  payment_status: string;
+  promo_code: string | null;
+  status: string;
+  shipping_address: ShippingAddress | null;
+  created_at: string;
+  shipping_method: string;
+  payment_method: string;
+  tracking_status: string;
+  expected_delivery: string | null;
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  notes: string | null;
+  email_confirmed: boolean;
+  items: OrderItemDetail[];
+  item_count: number;
+  history: { id?: string; status: string; note: string | null; created_at: string }[];
+};
+
+type AdminOrderSummary = Pick<
+  AdminOrder,
+  | "id"
+  | "total_cents"
+  | "status"
+  | "created_at"
+  | "payment_method"
+  | "payment_status"
+  | "tracking_status"
+  | "expected_delivery"
+  | "shipping_method"
+  | "customer_email"
+  | "item_count"
+> & {
+  user_id: string | null;
+};
+
+function OrdersView({
+  showToast,
+}: {
+  showToast: (message: string, type?: string) => void;
+}) {
+  const [orders, setOrders] = useState<AdminOrderSummary[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [formStatus, setFormStatus] = useState("");
+  const [formTracking, setFormTracking] = useState("");
+  const [formDelivery, setFormDelivery] = useState("");
+  const [formNote, setFormNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadOrders = useCallback(async () => {
+    try {
+      setLoadingOrders(true);
+      const data = await apiFetch<{
+        success: boolean;
+        orders: AdminOrderSummary[];
+        pagination: { pages: number };
+      }>(
+        `/admin/orders.php?page=${page}&status=${encodeURIComponent(statusFilter)}&search=${encodeURIComponent(search.trim())}`,
+      );
+      setOrders(data.orders ?? []);
+      setPages(data.pagination?.pages ?? 1);
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to load orders.",
+        "error",
+      );
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, [page, search, showToast, statusFilter]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadOrders(), 250);
+    return () => window.clearTimeout(timer);
+  }, [loadOrders]);
+
+  function formatDate(value: string) {
+    return new Date(value.replace(" ", "T")).toLocaleString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  function formatValue(value: string) {
+    return value
+      .replace(/[_-]/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function formatPaymentMethod(value: string) {
+    return value === "cod" ? "Cash on Delivery" : formatValue(value);
+  }
+
+  function addressLines(address: ShippingAddress | string | null) {
+    if (!address) {
+      return [];
+    }
+
+    let value: ShippingAddress;
+
+    if (typeof address === "string") {
+      try {
+        const parsed = JSON.parse(address);
+
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          return [];
+        }
+
+        value = parsed as ShippingAddress;
+      } catch {
+        return [];
+      }
+    } else {
+      value = address;
+    }
+
+    return [
+      [value.first_name, value.last_name].filter(Boolean).join(" "),
+      value.contact_number ?? "",
+      value.address_line ?? value.address ?? "",
+      [value.city, value.province, value.postal_code]
+        .filter(Boolean)
+        .join(", "),
+    ].filter(Boolean);
+  }
+
+  async function viewOrder(orderId: string) {
+    try {
+      setSelectedOrder(null);
+      setDetailsError("");
+      setDetailsLoading(true);
+      const data = await apiFetch<{ success: boolean; order: AdminOrder }>(
+        `/orders/get.php?id=${encodeURIComponent(orderId)}`,
+      );
+      setSelectedOrder({
+        ...data.order,
+        customer_email: orders.find((order) => order.id === orderId)?.customer_email ?? null,
+      });
+      setFormStatus(data.order.status);
+      setFormTracking(data.order.tracking_status || "processing");
+      setFormDelivery(data.order.expected_delivery?.slice(0, 10) || "");
+      setFormNote("");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to load order details.";
+      setDetailsError(message);
+      showToast(message, "error");
+    } finally {
+      setDetailsLoading(false);
+    }
+  }
+
+  const selectedAddress = addressLines(selectedOrder?.shipping_address ?? null);
+  const orderLocked =
+    ["cancelled", "refunded"].includes(selectedOrder?.status.toLowerCase() ?? "");
+
+  async function saveOrderUpdate() {
+    if (!selectedOrder) return;
+    try {
+      setSaving(true);
+      const result = await apiFetch<{ success: boolean; message: string }>(
+        "/admin/order-update.php",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            order_id: selectedOrder.id,
+            status: formStatus,
+            tracking_status: formTracking,
+            expected_delivery: formDelivery,
+            note: formNote.trim() || null,
+          }),
+        },
+      );
+      showToast(result.message || "Order updated.", "success");
+      const [detail] = await Promise.all([
+        apiFetch<{ success: boolean; order: AdminOrder }>(
+          `/orders/get.php?id=${encodeURIComponent(selectedOrder.id)}`,
+        ),
+        loadOrders(),
+      ]);
+      setSelectedOrder({
+        ...detail.order,
+        customer_email: selectedOrder.customer_email ?? null,
+      });
+      setFormStatus(detail.order.status);
+      setFormTracking(detail.order.tracking_status || "processing");
+      setFormDelivery(detail.order.expected_delivery?.slice(0, 10) || "");
+      setFormNote("");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Unable to update order.",
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="adm-ph">
+        <div>
+          <div className="adm-ph-title">Orders</div>
+          <div className="adm-ph-sub">View order details and customer delivery information.</div>
+        </div>
+      </div>
+
+      <div className="fr">
+        <div className="fg">
+          <label>Search order or customer email</label>
+          <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
+        </div>
+        <div className="fg">
+          <label>Status</label>
+          <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
+            <option value="">All statuses</option>
+            {["pending", "paid", "processing", "shipped", "delivered", "completed", "cancelled", "refunded"].map((status) => (
+              <option key={status} value={status}>{formatValue(status)}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="adm-tw">
+        <table className="adm-t">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Customer Email</th>
+              <th>Date</th>
+              <th>Total</th>
+              <th>Payment</th>
+              <th>Status</th>
+              <th>Items</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadingOrders ? (
+              <tr><td colSpan={8}><div className="adm-empty">Loading orders...</div></td></tr>
+            ) : orders.length === 0 ? (
+              <tr><td colSpan={8}><div className="adm-empty">No orders found.</div></td></tr>
+            ) : (
+              orders.map((order) => (
+                  <tr key={order.id}>
+                    <td className="adm-mono">#{order.id.substring(0, 8).toUpperCase()}</td>
+                    <td className="adm-muted">{order.customer_email || "—"}</td>
+                    <td className="adm-muted adm-small">{formatDate(order.created_at)}</td>
+                    <td>{money(order.total_cents)}</td>
+                    <td>{formatPaymentMethod(order.payment_method)}</td>
+                    <td><StatusBadge status={order.status} /></td>
+                    <td className="adm-small">{order.item_count}</td>
+                    <td><button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => void viewOrder(order.id)}>View</button></td>
+                  </tr>
+                ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      {pages > 1 && (
+        <div className="adm-mf">
+          <button type="button" className="adm-btn adm-btn-o adm-btn-s" disabled={page <= 1 || loadingOrders} onClick={() => setPage((current) => current - 1)}>Previous</button>
+          <span className="adm-small adm-muted">Page {page} of {pages}</span>
+          <button type="button" className="adm-btn adm-btn-o adm-btn-s" disabled={page >= pages || loadingOrders} onClick={() => setPage((current) => current + 1)}>Next</button>
+        </div>
+      )}
+
+      {(detailsLoading || selectedOrder || detailsError) && (
+        <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Order details">
+          <div className="adm-modal-box adm-order-modal">
+            <div className="adm-mh">
+              <div className="adm-mt">Order Details</div>
+              <button type="button" className="adm-mx" onClick={() => { setSelectedOrder(null); setDetailsError(""); }} aria-label="Close order details">×</button>
+            </div>
+
+            {detailsLoading ? (
+              <div className="adm-empty">Loading order details...</div>
+            ) : detailsError ? (
+              <div className="adm-empty">{detailsError}</div>
+            ) : selectedOrder && (
+              <>
+                <div className="adm-order-detail-grid">
+                  <section className="an-section">
+                    <h4>Order Information</h4>
+                    <div className="adm-order-info"><span>Order ID</span><strong className="adm-mono">{selectedOrder.id}</strong></div>
+                    <div className="adm-order-info"><span>Order Date</span><strong>{formatDate(selectedOrder.created_at)}</strong></div>
+                    <div className="adm-order-info"><span>Status</span><StatusBadge status={selectedOrder.status} /></div>
+                    <div className="adm-order-info"><span>Payment Status</span><StatusBadge status={selectedOrder.payment_status} /></div>
+                    <div className="adm-order-info"><span>Order Total</span><strong>{money(selectedOrder.total_cents)}</strong></div>
+                  </section>
+
+                  <section className="an-section">
+                    <h4>Customer Information</h4>
+                    <div className="adm-order-info"><span>Email</span><strong>{selectedOrder.customer_email || "Unavailable"}</strong></div>
+                    {selectedAddress.length ? selectedAddress.map((line, index) => <div className="adm-order-info" key={`${index}-${line}`}><span>{line === selectedAddress[0] ? "Recipient" : ""}</span><strong>{line}</strong></div>) : <div className="adm-muted adm-small">No customer details were saved.</div>}
+                  </section>
+
+                  <section className="an-section">
+                    <h4>Payment & Shipping</h4>
+                    <div className="adm-order-info"><span>Payment Method</span><strong>{formatPaymentMethod(selectedOrder.payment_method)}</strong></div>
+                    <div className="adm-order-info"><span>Shipping Method</span><strong>{formatValue(selectedOrder.shipping_method)}</strong></div>
+                    <div className="adm-order-info"><span>Tracking Status</span><strong>{formatValue(selectedOrder.tracking_status)}</strong></div>
+                    {selectedOrder.promo_code && <div className="adm-order-info"><span>Promo Code</span><strong>{selectedOrder.promo_code}</strong></div>}
+                  </section>
+
+                  <section className="an-section adm-order-update-section">
+                    <h4>Update Order</h4>
+                    <div className="adm-order-form-grid">
+                      <div className="fg">
+                        <label>Status</label>
+                        <select disabled={orderLocked || saving} value={formStatus} onChange={(event) => setFormStatus(event.target.value)}>
+                          {["pending", "paid", "processing", "shipped", "delivered", "completed", "cancelled", "refunded"].map((status) => (
+                            <option key={status} value={status}>{formatValue(status)}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="fg">
+                        <label>Tracking status</label>
+                        <select disabled={orderLocked || saving} value={formTracking} onChange={(event) => setFormTracking(event.target.value)}>
+                          {["processing", "packed", "shipped", "out_for_delivery", "delivered"].map((status) => (
+                            <option key={status} value={status}>{formatValue(status)}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="adm-order-form-grid">
+                      <div className="fg">
+                        <label>Expected delivery</label>
+                        <input type="date" disabled={orderLocked || saving} value={formDelivery} onChange={(event) => setFormDelivery(event.target.value)} />
+                      </div>
+                      <div className="fg">
+                        <label>Note</label>
+                        <textarea disabled={orderLocked || saving} value={formNote} maxLength={2000} onChange={(event) => setFormNote(event.target.value)} />
+                      </div>
+                    </div>
+                    {!orderLocked && (
+                      <button type="button" className="adm-btn adm-btn-p" disabled={saving} onClick={() => void saveOrderUpdate()}>
+                        {saving ? "Saving…" : "Save update"}
+                      </button>
+                    )}
+                    {orderLocked && <p className="adm-muted adm-small">Updates are disabled for cancelled or refunded orders.</p>}
+                  </section>
+
+                  <section className="an-section adm-order-history-section">
+                    <h4>History</h4>
+                    {selectedOrder.history?.length ? (
+                      <ol className="adm-order-history">
+                        {selectedOrder.history.map((entry, index) => (
+                          <li key={entry.id || `${entry.created_at}-${index}`}>
+                            <strong>{formatValue(entry.status)}</strong>
+                            <time>{formatDate(entry.created_at)}</time>
+                            {entry.note && <p>{entry.note}</p>}
+                          </li>
+                        ))}
+                      </ol>
+                    ) : <p className="adm-muted">No status history recorded.</p>}
+                  </section>
+                </div>
+
+                <section className="an-section">
+                  <h4>Shipping Address</h4>
+                  {selectedAddress.length ? selectedAddress.map((line, index) => <div className="adm-order-address" key={`${index}-${line}`}>{line}</div>) : <div className="adm-muted adm-small">No shipping address was saved for this order.</div>}
+                </section>
+
+                <section className="an-section">
+                  <h4>Order Items</h4>
+                  <div className="adm-tw">
+                    <table className="adm-t">
+                      <thead><tr><th>Product</th><th>Quantity</th><th>Unit Price</th><th>Subtotal</th></tr></thead>
+                      <tbody>
+                        {selectedOrder.items.map((item) => <tr key={item.id}><td>{item.product_name || "Product"}</td><td>{item.qty}</td><td>{money(item.price_cents)}</td><td>{money(item.subtotal_cents)}</td></tr>)}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+type AdminUser = {
+  id: string;
+  email: string;
+  role: string;
+  email_verified: boolean | number;
+  created_at: string;
+  is_disabled: boolean | number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  contact_number: string | null;
+  order_count: number;
+};
+
+function UsersView({
+  showToast,
+  currentUserId,
+}: {
+  showToast: (message: string, type?: string) => void;
+  currentUserId: string;
+}) {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [error, setError] = useState("");
+  const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [nameForm, setNameForm] = useState({ first_name: "", last_name: "", contact_number: "" });
+  const [notifying, setNotifying] = useState<AdminUser | null>(null);
+  const [notificationForm, setNotificationForm] = useState({ title: "", message: "" });
+  const [saving, setSaving] = useState(false);
+
+  const loadUsers = useCallback(async () => {
+    try {
+      setLoadingUsers(true);
+      setError("");
+      const data = await apiFetch<{ success: boolean; users: AdminUser[] }>("/admin/users.php");
+      setUsers(data.users ?? []);
+    } catch (loadError) {
+      const message = loadError instanceof Error ? loadError.message : "Failed to load users.";
+      setError(message);
+      showToast(message, "error");
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadUsers(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadUsers]);
+
+  async function updateUser(payload: Record<string, unknown>, successMessage: string) {
+    try {
+      setSaving(true);
+      await apiFetch("/admin/users.php", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      showToast(successMessage, "success");
+      await loadUsers();
+      setEditing(null);
+    } catch (updateError) {
+      showToast(updateError instanceof Error ? updateError.message : "Unable to update user.", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function formatDate(value: string) {
+    return new Date(value.replace(" ", "T")).toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  return (
+    <>
+      <div className="adm-ph">
+        <div>
+          <div className="adm-ph-title">Users</div>
+          <div className="adm-ph-sub">View registered customer and administrator accounts.</div>
+        </div>
+      </div>
+
+      <div className="adm-tw">
+        <table className="adm-t">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Email Verification</th>
+              <th>Disabled</th>
+              <th>Orders</th>
+              <th>Joined</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadingUsers ? (
+              <tr><td colSpan={7}><div className="adm-empty">Loading users...</div></td></tr>
+            ) : error ? (
+              <tr><td colSpan={7}><div className="adm-empty">{error}</div></td></tr>
+            ) : users.length === 0 ? (
+              <tr><td colSpan={7}><div className="adm-empty">No users found.</div></td></tr>
+            ) : (
+              users.map((account) => (
+                <tr key={account.id}>
+                  <td>{account.email}</td>
+                  <td><StatusBadge status={account.role} /></td>
+                  <td><StatusBadge status={account.email_verified ? "Verified" : "Not Verified"} /></td>
+                  <td><StatusBadge status={account.is_disabled ? "Disabled" : "Enabled"} /></td>
+                  <td>{account.order_count}</td>
+                  <td className="adm-muted adm-small">{formatDate(account.created_at)}</td>
+                  <td>
+                    <div className="adm-actions">
+                      <button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => {
+                        setEditing(account);
+                        setNameForm({ first_name: account.first_name || "", last_name: account.last_name || "", contact_number: account.contact_number || "" });
+                      }}>Edit</button>
+                      {account.id !== currentUserId && (
+                        <>
+                          <button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => {
+                            const role = account.role === "admin" ? "user" : "admin";
+                            if (window.confirm(`${role === "admin" ? "Make" : "Remove"} ${account.email} ${role === "admin" ? "an admin" : "admin access"}?`)) {
+                              void updateUser({ action: "set_role", user_id: account.id, role }, "User role updated.");
+                            }
+                          }}>{account.role === "admin" ? "Remove admin" : "Make admin"}</button>
+                          <button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => {
+                            const disabled = !account.is_disabled;
+                            if (window.confirm(`${disabled ? "Disable" : "Enable"} ${account.email}?`)) {
+                              void updateUser({ action: "set_disabled", user_id: account.id, disabled }, `User ${disabled ? "disabled" : "enabled"}.`);
+                            }
+                          }}>{account.is_disabled ? "Enable" : "Disable"}</button>
+                        </>
+                      )}
+                      <button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => {
+                        setNotifying(account);
+                        setNotificationForm({ title: "", message: "" });
+                      }}>Send notification</button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      {editing && (
+        <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Edit user">
+          <div className="adm-modal-box">
+            <div className="adm-mh"><div className="adm-mt">Edit user</div><button type="button" className="adm-mx" onClick={() => setEditing(null)}>×</button></div>
+            <div className="fg"><label>First name</label><input value={nameForm.first_name} onChange={(event) => setNameForm({ ...nameForm, first_name: event.target.value })} /></div>
+            <div className="fg"><label>Last name</label><input value={nameForm.last_name} onChange={(event) => setNameForm({ ...nameForm, last_name: event.target.value })} /></div>
+            <div className="fg"><label>Contact number</label><input value={nameForm.contact_number} onChange={(event) => setNameForm({ ...nameForm, contact_number: event.target.value })} /></div>
+            <div className="adm-mf">
+              <button type="button" className="adm-btn adm-btn-o" onClick={() => setEditing(null)}>Cancel</button>
+              <button type="button" className="adm-btn adm-btn-p" disabled={saving} onClick={() => void updateUser({ action: "update", user_id: editing.id, ...nameForm }, "User profile updated.")}>{saving ? "Saving…" : "Save"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {notifying && (
+        <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Send notification">
+          <div className="adm-modal-box">
+            <div className="adm-mh"><div className="adm-mt">Send notification</div><button type="button" className="adm-mx" onClick={() => setNotifying(null)}>×</button></div>
+            <p className="adm-muted adm-small">To: {notifying.email}</p>
+            <div className="fg"><label>Title</label><input value={notificationForm.title} onChange={(event) => setNotificationForm({ ...notificationForm, title: event.target.value })} /></div>
+            <div className="fg"><label>Message</label><textarea value={notificationForm.message} onChange={(event) => setNotificationForm({ ...notificationForm, message: event.target.value })} /></div>
+            <div className="adm-mf">
+              <button type="button" className="adm-btn adm-btn-o" onClick={() => setNotifying(null)}>Cancel</button>
+              <button type="button" className="adm-btn adm-btn-p" disabled={saving || !notificationForm.title.trim() || !notificationForm.message.trim()} onClick={async () => {
+                try {
+                  setSaving(true);
+                  await apiFetch("/admin/notify.php", { method: "POST", body: JSON.stringify({ ...notificationForm, user_id: notifying.id }) });
+                  showToast("Notification sent.", "success");
+                  setNotifying(null);
+                } catch (notifyError) {
+                  showToast(notifyError instanceof Error ? notifyError.message : "Unable to send notification.", "error");
+                } finally {
+                  setSaving(false);
+                }
+              }}>{saving ? "Sending…" : "Send"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+type ContactMessage = {
+  id: string;
+  user_id: string | null;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  is_handled: boolean | number;
+  created_at: string;
+};
+
+function MessagesView({ showToast }: { showToast: (message: string, type?: string) => void }) {
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
+  const [filter, setFilter] = useState("unread");
+  const [loading, setLoading] = useState(true);
+
+  const loadMessages = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await apiFetch<{ success: boolean; messages: ContactMessage[] }>("/admin/contact-messages.php");
+      setMessages(data.messages ?? []);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to load messages.", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadMessages(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadMessages]);
+
+  const filteredMessages = messages.filter((message) => {
+    const isHandled = Number(message.is_handled) === 1;
+    return filter === "all" || (filter === "handled" ? isHandled : !isHandled);
+  });
+
+  async function toggleHandled(message: ContactMessage) {
+    const handled = Number(message.is_handled) === 1;
+    try {
+      await apiFetch("/admin/contact-messages.php", {
+        method: "POST",
+        body: JSON.stringify({ id: message.id, is_handled: !handled }),
+      });
+      setMessages((current) => current.map((item) => item.id === message.id ? { ...item, is_handled: !handled } : item));
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to update message.", "error");
+    }
+  }
+
+  return (
+    <>
+      <div className="adm-ph">
+        <div><div className="adm-ph-title">Messages</div><div className="adm-ph-sub">Review customer contact messages.</div></div>
+        <select aria-label="Filter messages" value={filter} onChange={(event) => setFilter(event.target.value)}>
+          <option value="unread">Unread</option><option value="handled">Handled</option><option value="all">All messages</option>
+        </select>
+      </div>
+      {loading ? <div className="adm-empty">Loading messages...</div> : filteredMessages.length === 0 ? <div className="adm-empty">No messages found.</div> : (
+        <div className="adm-message-list">
+          {filteredMessages.map((message) => (
+            <article className="an-section" key={message.id}>
+              <div className="adm-order-info"><strong>{message.subject}</strong><span>{message.name} · {message.email}</span></div>
+              <div className="adm-order-info"><span>{new Date(message.created_at.replace(" ", "T")).toLocaleString("en-PH")}</span><StatusBadge status={Number(message.is_handled) === 1 ? "Handled" : "Unread"} /></div>
+              <details><summary>View message</summary><p>{message.message}</p></details>
+              <button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => void toggleHandled(message)}>{message.is_handled ? "Mark unread" : "Mark handled"}</button>
+            </article>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+type RefundRequest = {
+  id: string;
+  order_id: string;
+  user_id: string;
+  reason: string | null;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
+  customer_email: string | null;
+};
+
+type RefundOrder = {
+  id: string;
+  user_id: string | null;
+  total_cents: number;
+  status: string;
+  shipping_address: string | null;
+  created_at: string;
+  shipping_method: string;
+  payment_method: string;
+  items: OrderItemDetail[];
+};
+
+function RefundsView({
+  showToast,
+}: {
+  showToast: (message: string, type?: string) => void;
+}) {
+  const [refunds, setRefunds] = useState<RefundRequest[]>([]);
+  const [loadingRefunds, setLoadingRefunds] = useState(true);
+  const [error, setError] = useState("");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<RefundOrder | null>(null);
+  const [orderLoading, setOrderLoading] = useState(false);
+  const [orderError, setOrderError] = useState("");
+  const [refundConfirmation, setRefundConfirmation] = useState<{
+    refund: RefundRequest;
+    status: "approved" | "rejected";
+  } | null>(null);
+
+  async function loadRefunds() {
+    try {
+      setLoadingRefunds(true);
+      setError("");
+      const data = await apiFetch<{ success: boolean; refunds: RefundRequest[] }>(
+        "/admin/refunds.php",
+      );
+      setRefunds(data.refunds ?? []);
+    } catch (loadError) {
+      const message =
+        loadError instanceof Error
+          ? loadError.message
+          : "Failed to load refund requests.";
+      setError(message);
+      showToast(message, "error");
+    } finally {
+      setLoadingRefunds(false);
+    }
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadRefunds();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  function formatDate(value: string | null) {
+    if (!value) {
+      return "—";
+    }
+
+    return new Date(value.replace(" ", "T")).toLocaleString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  function formatValue(value: string) {
+    return value
+      .replace(/[_-]/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function shippingLines(value: string | null) {
+    if (!value) {
+      return [];
+    }
+
+    try {
+      const address = JSON.parse(value) as ShippingAddress;
+
+      return [
+        [address.first_name, address.last_name].filter(Boolean).join(" "),
+        address.contact_number ?? "",
+        address.address ?? "",
+        [address.city, address.province, address.postal_code]
+          .filter(Boolean)
+          .join(", "),
+      ].filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  async function updateRefund(refund: RefundRequest, status: "approved" | "rejected") {
+    try {
+      setUpdatingId(refund.id);
+      await apiFetch("/admin/refund-status.php", {
+        method: "POST",
+        body: JSON.stringify({ id: refund.id, status }),
+      });
+      showToast(`Refund request ${status} successfully.`, "success");
+      setRefundConfirmation(null);
+      await loadRefunds();
+    } catch (updateError) {
+      showToast(
+        updateError instanceof Error
+          ? updateError.message
+          : "Failed to update refund request.",
+        "error",
+      );
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function viewOrder(orderId: string) {
+    try {
+      setSelectedOrder(null);
+      setOrderError("");
+      setOrderLoading(true);
+      const data = await apiFetch<{ success: boolean; order: RefundOrder }>(
+        `/admin/refund-order.php?id=${encodeURIComponent(orderId)}`,
+      );
+      setSelectedOrder(data.order);
+    } catch (loadError) {
+      const message =
+        loadError instanceof Error ? loadError.message : "Failed to load order.";
+      setOrderError(message);
+      showToast(message, "error");
+    } finally {
+      setOrderLoading(false);
+    }
+  }
+
+  const selectedAddress = shippingLines(selectedOrder?.shipping_address ?? null);
+
+  return (
+    <>
+      <div className="adm-ph">
+        <div>
+          <div className="adm-ph-title">Refunds</div>
+          <div className="adm-ph-sub">Review and resolve customer refund requests.</div>
+        </div>
+      </div>
+
+      <div className="adm-tw">
+        <table className="adm-t">
+          <thead>
+            <tr>
+              <th>Request ID</th>
+              <th>Order ID</th>
+              <th>Customer</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Resolved</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadingRefunds ? (
+              <tr><td colSpan={8}><div className="adm-empty">Loading refund requests...</div></td></tr>
+            ) : error ? (
+              <tr><td colSpan={8}><div className="adm-empty">{error}</div></td></tr>
+            ) : refunds.length === 0 ? (
+              <tr><td colSpan={8}><div className="adm-empty">No refund requests found.</div></td></tr>
+            ) : (
+              refunds.map((refund) => (
+                <tr key={refund.id}>
+                  <td className="adm-mono">#{refund.id.substring(0, 8).toUpperCase()}</td>
+                  <td className="adm-mono">#{refund.order_id.substring(0, 8).toUpperCase()}</td>
+                  <td>{refund.customer_email || refund.user_id}</td>
+                  <td className="adm-small">{refund.reason || "—"}</td>
+                  <td><StatusBadge status={refund.status} /></td>
+                  <td className="adm-muted adm-small">{formatDate(refund.created_at)}</td>
+                  <td className="adm-muted adm-small">{formatDate(refund.resolved_at)}</td>
+                  <td>
+                    <div className="adm-actions">
+                      <button type="button" className="adm-btn adm-btn-o adm-btn-s" onClick={() => void viewOrder(refund.order_id)}>Order</button>
+                      {refund.status === "pending" && (
+                        <>
+                          <button type="button" className="adm-btn adm-btn-p adm-btn-s" disabled={updatingId === refund.id} onClick={() => setRefundConfirmation({ refund, status: "approved" })}>Approve</button>
+                          <button type="button" className="adm-btn adm-btn-d adm-btn-s" disabled={updatingId === refund.id} onClick={() => setRefundConfirmation({ refund, status: "rejected" })}>Reject</button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {refundConfirmation && (
+        <div className="adm-modal adm-refund-confirm-backdrop" role="presentation">
+          <section
+            className={`adm-modal-box adm-refund-confirm ${refundConfirmation.status}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="refund-confirm-title"
+            aria-describedby="refund-confirm-description"
+          >
+            <div className="adm-refund-confirm-mark" aria-hidden="true">
+              {refundConfirmation.status === "approved" ? "✓" : "!"}
+            </div>
+            <div className="adm-refund-confirm-eyebrow">Refund review</div>
+            <h2 id="refund-confirm-title">
+              {refundConfirmation.status === "approved"
+                ? "Approve this refund?"
+                : "Reject this refund?"}
+            </h2>
+            <p id="refund-confirm-description" className="adm-refund-confirm-copy">
+              {refundConfirmation.status === "approved"
+                ? "The request will be marked approved and the customer will see the updated status."
+                : "The request will be marked rejected and the customer will see the updated status."}
+            </p>
+            <dl className="adm-refund-confirm-details">
+              <div>
+                <dt>Request</dt>
+                <dd>#{refundConfirmation.refund.id.substring(0, 8).toUpperCase()}</dd>
+              </div>
+              <div>
+                <dt>Order</dt>
+                <dd>#{refundConfirmation.refund.order_id.substring(0, 8).toUpperCase()}</dd>
+              </div>
+              <div>
+                <dt>Customer</dt>
+                <dd>{refundConfirmation.refund.customer_email || refundConfirmation.refund.user_id}</dd>
+              </div>
+              <div className="adm-refund-confirm-reason">
+                <dt>Reason</dt>
+                <dd>{refundConfirmation.refund.reason || "No reason provided."}</dd>
+              </div>
+            </dl>
+            <div className="adm-refund-confirm-actions">
+              <button
+                type="button"
+                className="adm-btn adm-btn-o"
+                disabled={updatingId === refundConfirmation.refund.id}
+                onClick={() => setRefundConfirmation(null)}
+              >
+                Keep pending
+              </button>
+              <button
+                type="button"
+                className={`adm-btn ${refundConfirmation.status === "approved" ? "adm-btn-p" : "adm-btn-d"}`}
+                disabled={updatingId === refundConfirmation.refund.id}
+                onClick={() => void updateRefund(refundConfirmation.refund, refundConfirmation.status)}
+              >
+                {updatingId === refundConfirmation.refund.id
+                  ? "Saving..."
+                  : refundConfirmation.status === "approved"
+                    ? "Approve refund"
+                    : "Reject refund"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {(orderLoading || selectedOrder || orderError) && (
+        <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Related order">
+          <div className="adm-modal-box adm-order-modal">
+            <div className="adm-mh">
+              <div className="adm-mt">Related Order</div>
+              <button type="button" className="adm-mx" onClick={() => { setSelectedOrder(null); setOrderError(""); }} aria-label="Close related order">×</button>
+            </div>
+            {orderLoading ? <div className="adm-empty">Loading order...</div> : orderError ? <div className="adm-empty">{orderError}</div> : selectedOrder && (
+              <>
+                <div className="adm-order-detail-grid">
+                  <section className="an-section">
+                    <h4>Order Information</h4>
+                    <div className="adm-order-info"><span>Order ID</span><strong className="adm-mono">{selectedOrder.id}</strong></div>
+                    <div className="adm-order-info"><span>Date</span><strong>{formatDate(selectedOrder.created_at)}</strong></div>
+                    <div className="adm-order-info"><span>Status</span><StatusBadge status={selectedOrder.status} /></div>
+                    <div className="adm-order-info"><span>Total</span><strong>{money(selectedOrder.total_cents)}</strong></div>
+                  </section>
+                  <section className="an-section">
+                    <h4>Payment & Shipping</h4>
+                    <div className="adm-order-info"><span>Payment</span><strong>{selectedOrder.payment_method === "cod" ? "Cash on Delivery" : formatValue(selectedOrder.payment_method)}</strong></div>
+                    <div className="adm-order-info"><span>Shipping</span><strong>{formatValue(selectedOrder.shipping_method)}</strong></div>
+                  </section>
+                  <section className="an-section">
+                    <h4>Shipping Address</h4>
+                    {selectedAddress.length ? selectedAddress.map((line, index) => <div className="adm-order-address" key={`${index}-${line}`}>{line}</div>) : <div className="adm-muted adm-small">No shipping address was saved.</div>}
+                  </section>
+                </div>
+                <section className="an-section">
+                  <h4>Order Items</h4>
+                  <div className="adm-tw">
+                    <table className="adm-t">
+                      <thead><tr><th>Product</th><th>Quantity</th><th>Unit Price</th><th>Subtotal</th></tr></thead>
+                      <tbody>{selectedOrder.items.map((item) => <tr key={item.id}><td>{item.product_name || "Product"}</td><td>{item.qty}</td><td>{money(item.price_cents)}</td><td>{money(item.subtotal_cents)}</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                </section>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -30,19 +1931,21 @@ export default function AdminPage() {
   const [adminCode, setAdminCode] = useState("");
   const [codeError, setCodeError] = useState("");
   const [tab, setTab] = useState<Tab>("dashboard");
+  const [inventorySection, setInventorySection] = useState<"products" | "categories">("products");
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState("info");
   const [loading, setLoading] = useState(false);
 
   // Must keep the same identity between renders: child views list it in
   // their useEffect dependencies, so a new function every render made the
   // admin pages reload forever (flicker + spinner).
   const showToast = useCallback((message: string, type = "info") => {
-    if (type === "success") {
-      sonnerToast.success(message);
-    } else if (type === "error" || type === "danger") {
-      sonnerToast.error(message);
-    } else {
-      sonnerToast(message);
-    }
+    setToastMessage(message);
+    setToastType(type);
+
+    window.setTimeout(() => {
+      setToastMessage("");
+    }, 3000);
   }, []);
 
   useEffect(() => {
@@ -124,6 +2027,7 @@ export default function AdminPage() {
   if (authLoading) {
     return (
       <div className="adm-gate">
+        <style>{adminStyles}</style>
         <div className="adm-gate-box">
           <img src="/logo2.png" alt="ARduino Store" />
           <h2>Admin Access</h2>
@@ -137,12 +2041,13 @@ export default function AdminPage() {
   if (!user) {
     return (
       <div className="adm-gate">
+        <style>{adminStyles}</style>
         <div className="adm-gate-box">
           <img src="/logo2.png" alt="ARduino Store" />
           <h2>Admin Access</h2>
           <p>
             Please{" "}
-            <a href="/login" className="text-foreground underline underline-offset-4">
+            <a href="/login" style={{ color: "var(--adm-primary)" }}>
               log in
             </a>{" "}
             to access the admin panel.
@@ -155,12 +2060,13 @@ export default function AdminPage() {
   if (user.role !== "admin") {
     return (
       <div className="adm-gate">
+        <style>{adminStyles}</style>
         <div className="adm-gate-box">
           <img src="/logo2.png" alt="ARduino Store" />
           <h2>Admins only</h2>
           <p>
             This account does not have admin access.{" "}
-            <a href="/products" className="text-foreground underline underline-offset-4">
+            <a href="/products" style={{ color: "var(--adm-primary)" }}>
               Back to the store
             </a>
           </p>
@@ -172,6 +2078,7 @@ export default function AdminPage() {
   if (!authorized) {
     return (
       <div className="adm-gate">
+        <style>{adminStyles}</style>
         <div className="adm-gate-box">
           <img src="/logo2.png" alt="ARduino Store" />
           <h2>Admin Access</h2>
@@ -181,10 +2088,9 @@ export default function AdminPage() {
             admin code:
           </p>
 
-          <div className="fg text-left">
-            <Label htmlFor="admin-code">Admin Code</Label>
-            <Input
-              id="admin-code"
+          <div className="fg" style={{ textAlign: "left" }}>
+            <label>Admin Code</label>
+            <input
               type="password"
               value={adminCode}
               placeholder="Enter secret code"
@@ -197,24 +2103,22 @@ export default function AdminPage() {
             />
           </div>
 
-          <Button
+          <button
             className="adm-btn adm-btn-p adm-btn-full"
-            size="lg"
             onClick={verifyCode}
           >
             Continue →
-          </Button>
+          </button>
 
           {codeError && <p className="adm-code-error">{codeError}</p>}
 
-          <div className="mt-4">
-            <Button
+          <div style={{ marginTop: "1rem" }}>
+            <button
               onClick={signOut}
-              variant="destructive"
               className="adm-btn adm-btn-d adm-btn-full"
             >
               Sign Out
-            </Button>
+            </button>
           </div>
         </div>
       </div>
@@ -228,13 +2132,55 @@ export default function AdminPage() {
 
   return (
     <div className="adm-page">
+      <style>{adminStyles}</style>
+
       <div className="adm-layout">
-        <AdminSidebar
-          user={user}
-          tab={tab}
-          onTabChange={changeTab}
-          onSignOut={signOut}
-        />
+        <aside className="adm-sidebar">
+          <div className="adm-logo">
+            <img src="/logo2.png" alt="ARduino Store" />
+            <span className="adm-logo-text">Admin Panel</span>
+          </div>
+
+          <nav className="adm-nav">
+            {tabs.map((item) => (
+              <div key={item.id}>
+                {item.section && (
+                  <div className="adm-nav-section">{item.section}</div>
+                )}
+
+                <button
+                  className={`adm-nav-link ${tab === item.id ? "active" : ""}`}
+                  onClick={() => changeTab(item.id)}
+                >
+                  <span><item.icon size={18} aria-hidden="true" /></span>
+                  <span>{item.label}</span>
+                </button>
+              </div>
+            ))}
+          </nav>
+
+          <div className="adm-sidebar-footer">
+            <div style={{ marginBottom: "0.3rem", fontSize: "0.72rem" }}>
+              Signed in as
+            </div>
+
+            <div
+              style={{
+                color: "var(--adm-text)",
+                fontWeight: 600,
+                fontSize: "0.8rem",
+                wordBreak: "break-all",
+              }}
+            >
+              {user.email || user.username || "Admin"}
+            </div>
+
+            <button onClick={signOut} className="adm-sidebar-signout">
+              <LogOut size={16} aria-hidden="true" />
+              Sign Out
+            </button>
+          </div>
+        </aside>
 
         <div className="adm-main">
           <div className="adm-topbar">
@@ -266,11 +2212,33 @@ export default function AdminPage() {
               <AnalyticsView showToast={showToast} setLoading={setLoading} />
             )}
 
-            {tab === "products" && (
-              <ProductsView showToast={showToast} setLoading={setLoading} />
+            {tab === "inventory" && (
+              <>
+                <div className="adm-toolbar" aria-label="Inventory sections">
+                  <button
+                    type="button"
+                    aria-pressed={inventorySection === "products"}
+                    className={`adm-btn adm-btn-s ${inventorySection === "products" ? "adm-btn-p" : "adm-btn-o"}`}
+                    onClick={() => setInventorySection("products")}
+                  >
+                    Products
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={inventorySection === "categories"}
+                    className={`adm-btn adm-btn-s ${inventorySection === "categories" ? "adm-btn-p" : "adm-btn-o"}`}
+                    onClick={() => setInventorySection("categories")}
+                  >
+                    Categories
+                  </button>
+                </div>
+                {inventorySection === "products" ? (
+                  <ProductsView showToast={showToast} setLoading={setLoading} />
+                ) : (
+                  <CategoriesView showToast={showToast} />
+                )}
+              </>
             )}
-
-            {tab === "categories" && <CategoriesView showToast={showToast} />}
 
             {tab === "promos" && (
               <PromosView showToast={showToast} />
@@ -301,11 +2269,2882 @@ export default function AdminPage() {
       </div>
 
       {loading && (
-        <div className="adm-loading-overlay" role="status" aria-label="Loading">
-          <Skeleton className="h-4 w-48" />
+        <div className="adm-loading-overlay">
+          <div className="adm-spin" />
         </div>
+      )}
+
+      {toastMessage && (
+        <div className={`adm-toast ${toastType} show`}>{toastMessage}</div>
       )}
     </div>
   );
 }
 
+function DashboardView({
+  user,
+  onTab,
+  showToast,
+  setLoading,
+}: {
+  user: User;
+  onTab: (tab: Tab) => void;
+  showToast: (message: string, type?: string) => void;
+  setLoading: (value: boolean) => void;
+}) {
+  const [data, setData] = useState<DashboardData | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      setLoading(true);
+
+      try {
+        const result = await apiFetch<{
+          success: boolean;
+          dashboard: DashboardData;
+        }>("/admin/dashboard.php");
+
+        if (mounted) {
+          setData(result.dashboard);
+        }
+      } catch (error) {
+        if (mounted) {
+          showToast(
+            error instanceof Error
+              ? error.message
+              : "Unable to load dashboard.",
+            "error",
+          );
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [setLoading, showToast]);
+
+  const stats = data || {
+    product_count: 0,
+    order_count: 0,
+    user_count: 0,
+    promo_count: 0,
+    revenue_cents: 0,
+    recent_orders: [],
+  };
+
+  return (
+    <>
+      <div className="adm-ph">
+        <div>
+          <div className="adm-ph-title">Dashboard</div>
+          <div className="adm-ph-sub">
+            Welcome back, {(user.email || "admin").split("@")[0]}!
+          </div>
+        </div>
+      </div>
+
+      <div className="adm-stats-grid">
+        <StatCard
+          icon={Package}
+          iconClass="ic-teal"
+          value={stats.product_count}
+          label="Products"
+        />
+
+        <StatCard
+          icon={Box}
+          iconClass="ic-green"
+          value={stats.order_count}
+          label="Orders"
+        />
+
+        <StatCard
+          icon={Users}
+          iconClass="ic-orange"
+          value={stats.user_count}
+          label="Users"
+        />
+
+        <StatCard
+          icon={Percent}
+          iconClass="ic-teal"
+          value={stats.promo_count}
+          label="Promos"
+        />
+
+        <StatCard
+          icon={Banknote}
+          iconClass="ic-green"
+          value={moneyWhole(stats.revenue_cents)}
+          label="Revenue (Paid)"
+        />
+      </div>
+
+      <div className="adm-section-title">Recent Orders</div>
+
+      <div className="adm-tw" style={{ marginBottom: "1.75rem" }}>
+        <table className="adm-t">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Customer</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {stats.recent_orders.length ? (
+              stats.recent_orders.map((order) => (
+                <tr key={order.id}>
+                  <td className="adm-mono">
+                    #{order.id.substring(0, 8).toUpperCase()}
+                  </td>
+                  <td className="adm-muted">{order.customer_email || "—"}</td>
+                  <td>{money(order.total_cents)}</td>
+                  <td>
+                    <StatusBadge status={order.status} />
+                  </td>
+                  <td className="adm-muted adm-small">
+                    {new Date(order.created_at).toLocaleDateString("en-PH")}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={5}>
+                  <div className="adm-empty">No orders yet</div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="adm-section-title">Quick Access</div>
+
+      <div className="adm-qgrid">
+        <QuickCard
+          icon={Package}
+          title="Inventory"
+          description="Manage products, categories, and stock quantities."
+          onClick={() => onTab("inventory")}
+        />
+
+        <QuickCard
+          icon={TicketPercent}
+          title="Promos"
+          description="Create discount codes and send notifications."
+          onClick={() => onTab("promos")}
+        />
+
+        <QuickCard
+          icon={Truck}
+          title="Orders"
+          description="View and update order statuses."
+          onClick={() => onTab("orders")}
+        />
+
+        <QuickCard
+          icon={Users}
+          title="Users"
+          description="Manage user profiles and send messages."
+          onClick={() => onTab("users")}
+        />
+      </div>
+    </>
+  );
+}
+
+function AnalyticsView({
+  showToast,
+  setLoading,
+}: {
+  showToast: (message: string, type?: string) => void;
+  setLoading: (value: boolean) => void;
+}) {
+  const [data, setData] = useState<AnalyticsData | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      setLoading(true);
+
+      try {
+        const result = await apiFetch<{
+          success: boolean;
+          analytics: AnalyticsData;
+        }>("/admin/analytics.php");
+
+        if (mounted) {
+          setData(normalizeAnalytics(result.analytics));
+        }
+      } catch (error) {
+        if (mounted) {
+          showToast(
+            error instanceof Error
+              ? error.message
+              : "Unable to load analytics.",
+            "error",
+          );
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [setLoading, showToast]);
+
+  const analytics = data || {
+    total_revenue_cents: 0,
+    month_revenue_cents: 0,
+    total_orders: 0,
+    paid_orders: 0,
+    pending_orders: 0,
+    cancelled_orders: 0,
+    monthly_revenue: [],
+    payment_methods: [],
+    order_statuses: [],
+    top_products: [],
+  };
+
+  const maxRevenue = Math.max(
+    ...analytics.monthly_revenue.map((item) => item.revenue_cents),
+    1,
+  );
+
+  const paymentTotal =
+    analytics.payment_methods.reduce((total, item) => total + item.count, 0) ||
+    1;
+
+  return (
+    <>
+      <div className="adm-ph">
+        <div>
+          <div className="adm-ph-title">Analytics</div>
+          <div className="adm-ph-sub">Revenue and sales overview</div>
+        </div>
+      </div>
+
+      <div className="an-grid">
+        <AnalyticsStat
+          value={moneyWhole(analytics.total_revenue_cents)}
+          label="Total Revenue"
+          sub="All-time paid"
+        />
+
+        <AnalyticsStat
+          value={moneyWhole(analytics.month_revenue_cents)}
+          label="This Month"
+          sub={`${analytics.monthly_revenue.reduce(
+            (total, item) => total + item.order_count,
+            0,
+          )} orders`}
+        />
+
+        <AnalyticsStat
+          value={analytics.total_orders}
+          label="Total Orders"
+          sub={`${analytics.paid_orders} paid`}
+        />
+
+        <AnalyticsStat
+          value={analytics.pending_orders}
+          label="Pending / Processing"
+          sub={`${analytics.cancelled_orders} cancelled`}
+        />
+
+        <AnalyticsStat
+          value={
+            analytics.paid_orders > 0
+              ? moneyWhole(
+                  Math.round(
+                    analytics.total_revenue_cents / analytics.paid_orders,
+                  ),
+                )
+              : "—"
+          }
+          label="Avg. Order Value"
+          sub="Paid orders only"
+        />
+      </div>
+
+      <div className="an-section">
+        <h4><ChartNoAxesColumnIncreasing size={16} aria-hidden="true" /> Monthly Revenue — Last 6 Months</h4>
+
+        {analytics.monthly_revenue.length ? (
+          analytics.monthly_revenue.map((month) => (
+            <div className="bar-row" key={month.label}>
+              <div className="bar-label">{month.label}</div>
+
+              <div className="bar-track">
+                <div
+                  className="bar-fill"
+                  style={{
+                    width: `${Math.max(
+                      month.revenue_cents > 0
+                        ? (month.revenue_cents / maxRevenue) * 100
+                        : 0,
+                      month.revenue_cents > 0 ? 3 : 0,
+                    )}%`,
+                  }}
+                >
+                  {month.revenue_cents > 0 && (
+                    <span className="bar-val">
+                      {moneyWhole(month.revenue_cents)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="bar-orders">{month.order_count} orders</div>
+            </div>
+          ))
+        ) : (
+          <p className="adm-muted">No sales data yet.</p>
+        )}
+      </div>
+
+      <div className="an-two">
+        <div className="an-section">
+          <h4><Activity size={16} aria-hidden="true" /> Payment Methods</h4>
+
+          {analytics.payment_methods.length ? (
+            analytics.payment_methods.map((payment) => {
+              const percentage = (payment.count / paymentTotal) * 100;
+
+              return (
+                <div
+                  className="bar-row"
+                  style={{ marginBottom: "0.5rem" }}
+                  key={payment.method}
+                >
+                  <div className="bar-label" style={{ width: "70px" }}>
+                    {paymentLabel(payment.method)}
+                  </div>
+
+                  <div className="bar-track" style={{ height: "22px" }}>
+                    <div
+                      className="bar-fill"
+                      style={{
+                        width: `${percentage}%`,
+                      }}
+                    >
+                      <span className="bar-val">
+                        {payment.count} ({percentage.toFixed(0)}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <p className="adm-muted">No paid orders yet.</p>
+          )}
+        </div>
+
+        <div className="an-section">
+          <h4><Package size={16} aria-hidden="true" /> Order Status Breakdown</h4>
+
+          {analytics.order_statuses.length ? (
+            analytics.order_statuses.map((item) => {
+              const percentage =
+                analytics.total_orders > 0
+                  ? (item.count / analytics.total_orders) * 100
+                  : 0;
+
+              return (
+                <div
+                  className="bar-row"
+                  style={{ marginBottom: "0.5rem" }}
+                  key={item.status}
+                >
+                  <div
+                    className="bar-label"
+                    style={{
+                      width: "75px",
+                      textTransform: "capitalize",
+                    }}
+                  >
+                    {item.status}
+                  </div>
+
+                  <div className="bar-track" style={{ height: "22px" }}>
+                    <div
+                      className="bar-fill"
+                      style={{
+                        width: `${percentage}%`,
+                      }}
+                    >
+                      <span className="bar-val">{item.count}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <p className="adm-muted">No order data yet.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="an-section">
+        <h4><Box size={16} aria-hidden="true" /> Top Products by Units Sold</h4>
+
+        {analytics.top_products.length ? (
+          analytics.top_products.map((product, index) => (
+            <div className="top-prod-row" key={`${product.name}-${index}`}>
+              <div className="top-rank">#{index + 1}</div>
+
+              <img
+                src={getProductImageUrl(product.img_url)}
+                alt={product.name}
+                onError={handleProductImageError}
+              />
+
+              <div style={{ flex: 1 }}>
+                <div className="top-product-name">
+                  {escapeText(product.name)}
+                </div>
+
+                <div className="adm-small adm-muted">
+                  {money(product.revenue_cents)} revenue
+                </div>
+              </div>
+
+              <div className="top-product-qty">{product.qty} sold</div>
+            </div>
+          ))
+        ) : (
+          <p className="adm-muted">No sales data yet.</p>
+        )}
+      </div>
+    </>
+  );
+}
+
+function ProductsView({
+  showToast,
+  setLoading,
+}: {
+  showToast: (message: string, type?: string) => void;
+  setLoading: (value: boolean) => void;
+}) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
+  const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
+  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Product | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [price, setPrice] = useState("");
+  const [stock, setStock] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [lowStockThreshold, setLowStockThreshold] = useState("5");
+  const [description, setDescription] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [initialVariants, setInitialVariants] = useState<ProductVariant[]>([]);
+  const [variantDrafts, setVariantDrafts] = useState<ProductVariant[]>([]);
+  const [variantsLoading, setVariantsLoading] = useState(false);
+  const [variantLoadError, setVariantLoadError] = useState("");
+  const variantRequestIdRef = useRef(0);
+  const [modelUrl, setModelUrl] = useState("");
+  const [modelFileName, setModelFileName] = useState("");
+  const [uploadingModel, setUploadingModel] = useState(false);
+  const modelFileInputRef = useRef<HTMLInputElement>(null);
+  const [stockModalProduct, setStockModalProduct] = useState<Product | null>(null);
+  const [stockVariantId, setStockVariantId] = useState("");
+  const [stockQuantity, setStockQuantity] = useState("");
+  const [stockReason, setStockReason] = useState("");
+  const [stockError, setStockError] = useState("");
+  const [stockSaving, setStockSaving] = useState(false);
+  const stockSubmitLock = useRef(false);
+
+  async function refreshProducts() {
+    const [productsData, inventoryData, lowStockData, transactionData] = await Promise.all([
+      apiFetch<{
+      success: boolean;
+      products: Product[];
+      }>("/products/list.php"),
+      apiFetch<{
+        success: boolean;
+        products: Product[];
+        count: number;
+      }>("/inventory/list.php"),
+      apiFetch<{
+        success: boolean;
+        products: LowStockItem[];
+        count: number;
+      }>("/inventory/low-stock.php"),
+      apiFetch<{
+        success: boolean;
+        transactions: InventoryTransaction[];
+      }>("/inventory/transactions.php?limit=50"),
+    ]);
+
+    const inventoryById = new Map(
+      (inventoryData.products || []).map((product) => [product.id, product]),
+    );
+    setProducts(
+      (productsData.products || []).map((product) => ({
+        ...product,
+        ...inventoryById.get(product.id),
+      })),
+    );
+    setLowStockItems(lowStockData.products || []);
+    setTransactions(transactionData.transactions || []);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchInventory() {
+      try {
+        const [productsData, inventoryData, lowStockData, transactionData, categoriesData] = await Promise.all([
+          apiFetch<{ success: boolean; products: Product[] }>("/products/list.php"),
+          apiFetch<{ success: boolean; products: Product[]; count: number }>("/inventory/list.php"),
+          apiFetch<{ success: boolean; products: LowStockItem[]; count: number }>("/inventory/low-stock.php"),
+          apiFetch<{ success: boolean; transactions: InventoryTransaction[] }>("/inventory/transactions.php?limit=50"),
+          apiFetch<{
+            success: boolean;
+            categories: Category[];
+          }>("/categories/list.php"),
+        ]);
+
+        if (!cancelled) {
+          const inventoryById = new Map(
+            (inventoryData.products || []).map((product) => [product.id, product]),
+          );
+          setProducts(
+            (productsData.products || []).map((product) => ({
+              ...product,
+              ...inventoryById.get(product.id),
+            })),
+          );
+          setLowStockItems(lowStockData.products || []);
+          setTransactions(transactionData.transactions || []);
+          setCategories(categoriesData.categories || []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setProducts([]);
+          showToast(
+            error instanceof Error ? error.message : "Unable to load inventory.",
+            "error",
+          );
+        }
+      }
+    }
+
+    fetchInventory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showToast]);
+  const lowStockProductIds = useMemo(
+    () => new Set(lowStockItems.map((item) => item.product_id)),
+    [lowStockItems],
+  );
+  const filteredProducts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    return products.filter((product) => {
+      const matchesQuery =
+        !q ||
+        product.name.toLowerCase().includes(q) ||
+        product.slug.toLowerCase().includes(q) ||
+        (product.sku || "").toLowerCase().includes(q);
+
+      const matchesCategory =
+        !categoryFilter || product.category_id === categoryFilter;
+
+      const matchesLowStock =
+        !lowStockOnly ||
+        (product.is_low_stock === true && product.stock > 0) ||
+        lowStockProductIds.has(product.id);
+
+      return matchesQuery && matchesCategory && matchesLowStock;
+    });
+  }, [products, query, categoryFilter, lowStockOnly, lowStockProductIds]);
+
+  function createSlug(value: string) {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .substring(0, 50);
+  }
+
+  function openAdd() {
+    variantRequestIdRef.current += 1;
+    setEditing(null);
+    setName("");
+    setSlug("");
+    setPrice("");
+    setStock("");
+    setCategoryId("");
+    setLowStockThreshold("5");
+    setDescription("");
+    setImageFile(null);
+    setInitialVariants([]);
+    setVariantDrafts([]);
+    setVariantsLoading(false);
+    setVariantLoadError("");
+    setModelUrl("");
+    setModelFileName("");
+    if (modelFileInputRef.current) {
+      modelFileInputRef.current.value = "";
+    }
+    setModalOpen(true);
+  }
+
+  async function openEdit(product: Product) {
+    const requestId = variantRequestIdRef.current + 1;
+    variantRequestIdRef.current = requestId;
+    setEditing(product);
+    setName(product.name);
+    setSlug(product.slug);
+    setPrice((product.price_cents / 100).toFixed(2));
+    setStock(String(product.stock));
+    setCategoryId(product.category_id || "");
+    setLowStockThreshold(String(product.low_stock_threshold ?? 5));
+    setDescription(product.description || "");
+    setImageFile(null);
+    setInitialVariants([]);
+    setVariantDrafts([]);
+    setVariantsLoading(true);
+    setVariantLoadError("");
+    setModelUrl(product.model_url || "");
+    setModelFileName(
+      product.model_url?.split(/[?#]/, 1)[0].split("/").pop() || "",
+    );
+    if (modelFileInputRef.current) {
+      modelFileInputRef.current.value = "";
+    }
+    setModalOpen(true);
+    try {
+      const data = await apiFetch<{ success: boolean; variants: ProductVariant[] }>(
+        `/variants/list.php?product_id=${encodeURIComponent(product.id)}`,
+      );
+      if (requestId !== variantRequestIdRef.current) return;
+      setInitialVariants(data.variants ?? []);
+      setVariantDrafts(data.variants ?? []);
+    } catch (error) {
+      if (requestId !== variantRequestIdRef.current) return;
+      setVariantLoadError(error instanceof Error ? error.message : "Unable to load variants.");
+      showToast(error instanceof Error ? error.message : "Unable to load variants.", "error");
+    } finally {
+      if (requestId === variantRequestIdRef.current) {
+        setVariantsLoading(false);
+      }
+    }
+  }
+
+  async function uploadModel(file: File) {
+    if (!/\.glb$/i.test(file.name)) {
+      showToast("Choose a .glb model file.", "error");
+      if (modelFileInputRef.current) {
+        modelFileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      showToast("The 3D model must be 25 MB or smaller.", "error");
+      if (modelFileInputRef.current) {
+        modelFileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    setUploadingModel(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append("kind", "model");
+
+      const result = await apiFetch<{ success: boolean; url?: string }>(
+        "/products/upload.php",
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!result.url?.trim()) {
+        throw new Error("The server did not return a model URL.");
+      }
+
+      setModelUrl(result.url);
+      setModelFileName(file.name);
+      showToast("3D model uploaded.", "success");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "3D model upload failed.",
+        "error",
+      );
+      if (modelFileInputRef.current) {
+        modelFileInputRef.current.value = "";
+      }
+    } finally {
+      setUploadingModel(false);
+    }
+  }
+
+  async function uploadImage(file: File) {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const response = await fetch(`${API_BASE}/products/upload.php`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || data.success === false) {
+      throw new Error(data.message || "Image upload failed.");
+    }
+
+    return data.url as string;
+  }
+
+  async function saveProduct() {
+    const id = editing?.id;
+    const cleanName = name.trim();
+    const cleanSlug = slug.trim();
+    const numericPrice = Number(price);
+    const numericStock = Number(stock);
+    const numericThreshold = Number(lowStockThreshold);
+
+    if (
+      !cleanName ||
+      !cleanSlug ||
+      !stock.trim() ||
+      !Number.isFinite(numericPrice) ||
+      !Number.isInteger(numericStock) ||
+      numericStock < 0 ||
+      (!id &&
+        (!lowStockThreshold.trim() ||
+          !Number.isInteger(numericThreshold) ||
+          numericThreshold < 0))
+    ) {
+      showToast("Enter valid product details and non-negative whole stock and threshold quantities.", "error");
+      return;
+    }
+
+    if (uploadingModel) {
+      showToast("Wait for the 3D model upload to finish.", "error");
+      return;
+    }
+    if (variantsLoading || variantLoadError) {
+      showToast(variantLoadError || "Wait for variants to finish loading.", "error");
+      return;
+    }
+
+    setSaving(true);
+    let savedProductId = id || "";
+    let generatedSku: string | null = null;
+
+    try {
+      let imgUrl = editing?.img_url || null;
+
+      if (imageFile) {
+        imgUrl = await uploadImage(imageFile);
+      }
+
+      const payload = {
+        name: cleanName,
+        slug: cleanSlug,
+        price_cents: Math.round(numericPrice * 100),
+        stock: numericStock,
+        category_id: categoryId || null,
+        description: description.trim() || null,
+        img_url: imgUrl,
+        model_url: modelUrl.trim() || null,
+      };
+
+      if (id) {
+        await apiFetch("/products/update.php", {
+          method: "PUT",
+          body: JSON.stringify({
+            id,
+            ...payload,
+          }),
+        });
+
+      } else {
+        const result = await apiFetch<{ success: boolean; product: Product }>("/products/create.php", {
+          method: "POST",
+          body: JSON.stringify({
+            ...payload,
+            low_stock_threshold: numericThreshold,
+          }),
+        });
+        savedProductId = result.product.id;
+        generatedSku = result.product.sku ?? null;
+      }
+
+      if (!savedProductId) {
+        throw new Error("The server did not return the saved product ID.");
+      }
+      await saveVariants(savedProductId);
+      showToast(
+        id
+          ? "Product updated!"
+          : `Product added! SKU: ${generatedSku || "available in the inventory list"}`,
+        "success",
+      );
+      setModalOpen(false);
+      await refreshProducts();
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Unable to save product.",
+        "error",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addStock() {
+    const quantity = Number(stockQuantity);
+
+    if (!stockModalProduct) {
+      return;
+    }
+
+    if (!Number.isInteger(quantity) || quantity <= 0 || !stockReason.trim()) {
+      setStockError("Enter a positive whole quantity and a reason.");
+      return;
+    }
+
+    if (stockSubmitLock.current) {
+      return;
+    }
+
+    stockSubmitLock.current = true;
+    setStockSaving(true);
+    setStockError("");
+
+    try {
+      await apiFetch<{
+        success: boolean;
+        product: Product;
+        transaction: InventoryTransaction;
+      }>("/inventory/add-stock.php", {
+        method: "POST",
+        body: JSON.stringify({
+          product_id: stockModalProduct.id,
+          ...(stockVariantId ? { variant_id: stockVariantId } : {}),
+          quantity,
+          reason: stockReason.trim(),
+        }),
+      });
+
+      setStockModalProduct(null);
+      setStockQuantity("");
+      setStockReason("");
+      setStockVariantId("");
+      showToast("Stock added successfully.", "success");
+
+      try {
+        await refreshProducts();
+      } catch (error) {
+        showToast(
+          error instanceof Error
+            ? `Stock was added, but inventory could not be refreshed: ${error.message}`
+            : "Stock was added, but inventory could not be refreshed.",
+          "error",
+        );
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to add stock.";
+      setStockError(message);
+      showToast(message, "error");
+    } finally {
+      stockSubmitLock.current = false;
+      setStockSaving(false);
+    }
+  }
+
+  async function saveVariants(productId: string) {
+    const baseline = [...initialVariants];
+    const drafts = [...variantDrafts];
+    const draftIds = new Set(drafts.flatMap((variant) => variant.id ? [variant.id] : []));
+
+    for (const variant of [...baseline]) {
+      if (variant.id && !draftIds.has(variant.id)) {
+        await apiFetch("/variants/delete.php", {
+          method: "POST",
+          body: JSON.stringify({ id: variant.id }),
+        });
+        const index = baseline.findIndex((item) => item.id === variant.id);
+        if (index !== -1) baseline.splice(index, 1);
+        setInitialVariants([...baseline]);
+      }
+    }
+
+    for (let index = 0; index < drafts.length; index += 1) {
+      const draft = drafts[index];
+      const payload = {
+        product_id: productId,
+        variant_name: draft.variant_name.trim(),
+        option_value: draft.option_value.trim(),
+        price_adjustment: Math.round(Number(draft.price_adjustment)),
+        stock: Math.trunc(Number(draft.stock)),
+      };
+      if (!payload.variant_name || !payload.option_value || !Number.isFinite(payload.price_adjustment) || !Number.isInteger(payload.stock) || payload.stock < 0) {
+        throw new Error("Each variant needs a name, option value, valid price adjustment, and non-negative stock.");
+      }
+
+      if (draft.id) {
+        await apiFetch("/variants/update.php", {
+          method: "PUT",
+          body: JSON.stringify({ id: draft.id, ...payload }),
+        });
+        const baselineIndex = baseline.findIndex((item) => item.id === draft.id);
+        const savedVariant = { ...payload, id: draft.id };
+        if (baselineIndex === -1) baseline.push(savedVariant);
+        else baseline[baselineIndex] = savedVariant;
+        setInitialVariants([...baseline]);
+      } else {
+        const result = await apiFetch<{ success: boolean; variant: ProductVariant }>("/variants/create.php", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        const savedVariant = result.variant;
+        baseline.push(savedVariant);
+        drafts[index] = savedVariant;
+        setInitialVariants([...baseline]);
+        setVariantDrafts([...drafts]);
+      }
+    }
+  }
+
+  async function deleteProduct(productId: string) {
+    const confirmed = window.confirm(
+      "Delete this product? This cannot be undone.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await apiFetch("/products/delete.php", {
+        method: "DELETE",
+        body: JSON.stringify({
+          id: productId,
+        }),
+      });
+
+      showToast("Product deleted.", "info");
+      await refreshProducts();
+    } catch (error) {
+      window.alert(
+        error instanceof Error ? error.message : "Failed to delete product.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="adm-ph">
+        <div>
+          <div className="adm-ph-title">Inventory</div>
+          <div className="adm-ph-sub">{products.length} items in catalog</div>
+        </div>
+
+        <button className="adm-btn adm-btn-p" onClick={openAdd}>
+          + Add Product
+        </button>
+      </div>
+
+      <div className="adm-toolbar">
+        <div className="adm-search">
+          <span className="adm-search-icon">⌕</span>
+
+          <input
+            type="text"
+            placeholder="Search products…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+
+        <select
+          className="adm-sel"
+          value={categoryFilter}
+          onChange={(event) => setCategoryFilter(event.target.value)}
+        >
+          <option value="">All Categories</option>
+
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          aria-pressed={lowStockOnly}
+          className={`adm-btn adm-btn-s ${lowStockOnly ? "adm-btn-p" : "adm-btn-o"}`}
+          onClick={() => setLowStockOnly((current) => !current)}
+        >
+          {lowStockOnly ? "Show All Products" : `Low Stock (${lowStockItems.length})`}
+        </button>
+      </div>
+
+      <section className="an-section" aria-labelledby="low-stock-heading">
+        <div className="adm-mh">
+          <h4 id="low-stock-heading">Low-stock alerts</h4>
+          <span className="b b-o">{lowStockItems.length}</span>
+        </div>
+        {lowStockItems.length === 0 ? (
+          <p className="adm-muted">No low-stock products or variants.</p>
+        ) : (
+          <div className="adm-tw">
+            <table className="adm-t">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Item</th>
+                  <th>SKU</th>
+                  <th>Available</th>
+                  <th>Threshold</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lowStockItems.map((item) => (
+                  <tr key={`${item.product_id}-${item.variant_id || "product"}`}>
+                    <td>{item.product_name}</td>
+                    <td>{item.item_type === "variant" ? "Variant" : "Product"}</td>
+                    <td>{item.sku || "—"}</td>
+                    <td><span className="b b-o">{item.stock}</span></td>
+                    <td>{item.low_stock_threshold}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <div className="adm-tw">
+        {!filteredProducts.length ? (
+          <div className="adm-empty">No products found</div>
+        ) : (
+          <table className="adm-t">
+            <thead>
+              <tr>
+                <th>Img</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Availability</th>
+                <th>Category</th>
+                <th>SKU</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredProducts.map((product) => (
+                <tr key={product.id}>
+                  <td>
+                    <img
+                      src={getProductImageUrl(product.img_url)}
+                      alt={product.name}
+                      onError={handleProductImageError}
+                    />
+                  </td>
+
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{product.name}</div>
+
+                    <div className="adm-small adm-muted">{product.slug}</div>
+                  </td>
+
+                  <td>{money(product.price_cents)}</td>
+
+                  <td>
+                    <span className={product.stock === 0 ? "b b-r" : product.is_low_stock ? "b b-o" : "b b-g"}>
+                      {product.stock}
+                    </span>
+                    {product.low_stock_threshold !== undefined && (
+                      <div className="adm-small adm-muted">
+                        Threshold: {product.low_stock_threshold}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <span className={product.availability === "out_of_stock" ? "b b-r" : product.availability === "low_stock" ? "b b-o" : "b b-g"}>
+                      {product.availability || (product.stock === 0 ? "out_of_stock" : "in_stock")}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span className="b b-t">
+                      {product.category_name || "—"}
+                    </span>
+                  </td>
+
+                  <td className="adm-small adm-muted">{product.sku || "—"}</td>
+
+                  <td>
+                    <div className="adm-actions">
+                      <button
+                        type="button"
+                        className="adm-btn adm-btn-o adm-btn-s"
+                        onClick={() => {
+                          setStockModalProduct(product);
+                          setStockVariantId("");
+                          setStockQuantity("");
+                          setStockReason("");
+                          setStockError("");
+                        }}
+                      >
+                        Add Stock
+                      </button>
+
+                      <button
+                        className="adm-btn adm-btn-o adm-btn-s"
+                        onClick={() => void openEdit(product)}
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        className="adm-btn adm-btn-d adm-btn-s"
+                        onClick={() => deleteProduct(product.id)}
+                      >
+                        Del
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <section className="an-section" aria-labelledby="stock-transactions-heading">
+        <div className="adm-mh">
+          <h4 id="stock-transactions-heading">Stock transactions</h4>
+          <span className="adm-small adm-muted">Latest {transactions.length}</span>
+        </div>
+        {!transactions.length ? (
+          <p className="adm-muted">No stock transactions recorded.</p>
+        ) : (
+          <div className="adm-tw">
+            <table className="adm-t">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Product</th>
+                  <th>SKU</th>
+                  <th>Quantity</th>
+                  <th>Stock before</th>
+                  <th>Stock after</th>
+                  <th>Date</th>
+                  <th>Reason / Order</th>
+                  <th>Actor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((transaction) => (
+                  <tr key={transaction.id}>
+                    <td><span className={transaction.movement_type === "IN" ? "b b-g" : "b b-o"}>{transaction.movement_type}</span></td>
+                    <td>
+                      {transaction.product_name || transaction.product_id}
+                      {transaction.variant_name && (
+                        <div className="adm-small adm-muted">
+                          {transaction.variant_name}: {transaction.option_value}
+                        </div>
+                      )}
+                    </td>
+                    <td>{transaction.sku || "—"}</td>
+                    <td>{transaction.quantity}</td>
+                    <td>{transaction.stock_before}</td>
+                    <td>{transaction.stock_after}</td>
+                    <td>{new Date(transaction.created_at.replace(" ", "T")).toLocaleString("en-PH")}</td>
+                    <td>
+                      {transaction.reason || "—"}
+                      {transaction.order_id && (
+                        <div className="adm-small adm-muted">Order {transaction.order_id}</div>
+                      )}
+                    </td>
+                    <td>{transaction.actor_email || transaction.actor_id || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {stockModalProduct && (
+        <div className="adm-modal" role="presentation">
+          <div className="adm-modal-box" role="dialog" aria-modal="true" aria-labelledby="add-stock-title">
+            <div className="adm-mh">
+              <div className="adm-mt" id="add-stock-title">Add Stock — {stockModalProduct.name}</div>
+              <button
+                type="button"
+                className="adm-mx"
+                aria-label="Close add stock dialog"
+                onClick={() => setStockModalProduct(null)}
+                disabled={stockSaving}
+              >
+                ✕
+              </button>
+            </div>
+            {stockModalProduct.variants?.length ? (
+              <div className="fg">
+                <label htmlFor="stock-variant">Stock item</label>
+                <select
+                  id="stock-variant"
+                  value={stockVariantId}
+                  onChange={(event) => setStockVariantId(event.target.value)}
+                >
+                  <option value="">Product ({stockModalProduct.stock} available)</option>
+                  {stockModalProduct.variants.map((variant) => (
+                    <option
+                      key={variant.id ?? `${variant.variant_name}-${variant.option_value}`}
+                      value={variant.id ?? ""}
+                    >
+                      {variant.variant_name}: {variant.option_value} ({variant.stock} available)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+            <div className="fg">
+              <label htmlFor="stock-quantity">Quantity to add *</label>
+              <input
+                id="stock-quantity"
+                type="number"
+                min="1"
+                step="1"
+                required
+                value={stockQuantity}
+                onChange={(event) => setStockQuantity(event.target.value)}
+                disabled={stockSaving}
+              />
+            </div>
+            <div className="fg">
+              <label htmlFor="stock-reason">Reason *</label>
+              <input
+                id="stock-reason"
+                value={stockReason}
+                onChange={(event) => setStockReason(event.target.value)}
+                required
+                disabled={stockSaving}
+              />
+            </div>
+            {stockError && <p role="alert">{stockError}</p>}
+            <div className="adm-mf">
+              <button
+                type="button"
+                className="adm-btn adm-btn-o"
+                onClick={() => setStockModalProduct(null)}
+                disabled={stockSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="adm-btn adm-btn-p"
+                onClick={() => void addStock()}
+                disabled={stockSaving}
+              >
+                {stockSaving ? "Adding…" : "Add Stock"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalOpen && (
+        <div className="adm-modal">
+          <div className="adm-modal-box">
+            <div className="adm-mh">
+              <div className="adm-mt">
+                {editing ? "Edit Product" : "Add Product"}
+              </div>
+
+              <button className="adm-mx" onClick={() => setModalOpen(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="fr">
+              <div className="fg">
+                <label>Name *</label>
+
+                <input
+                  value={name}
+                  placeholder="Arduino UNO R3"
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setName(value);
+
+                    if (!editing) {
+                      setSlug(createSlug(value));
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="fg">
+                <label>Slug *</label>
+
+                <input
+                  value={slug}
+                  placeholder="arduino-uno-r3"
+                  onChange={(event) => setSlug(event.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="fr">
+              <div className="fg">
+                <label>Price (PHP) *</label>
+
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={price}
+                  placeholder="1500.00"
+                  onChange={(event) => setPrice(event.target.value)}
+                />
+              </div>
+
+              <div className="fg">
+                <label>Stock *</label>
+
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={stock}
+                  placeholder="25"
+                  readOnly={Boolean(editing)}
+                  onChange={(event) => setStock(event.target.value)}
+                />
+                {editing && (
+                  <small className="adm-small adm-muted">
+                    Use Add Stock for inventory increases. Customer purchases are recorded automatically.
+                  </small>
+                )}
+              </div>
+              <div className="fg">
+                <label htmlFor="product-low-stock-threshold">
+                  Low-stock threshold{editing ? "" : " *"}
+                </label>
+                <input
+                  id="product-low-stock-threshold"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={editing ? editing.low_stock_threshold ?? 5 : lowStockThreshold}
+                  readOnly={Boolean(editing)}
+                  onChange={(event) => setLowStockThreshold(event.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="fr">
+              <div className="fg">
+                <label>Category</label>
+
+                <select
+                  value={categoryId}
+                  onChange={(event) => setCategoryId(event.target.value)}
+                >
+                  <option value="">Select…</option>
+
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="fg">
+                <label htmlFor="product-sku">SKU</label>
+
+                <input
+                  id="product-sku"
+                  value={editing?.sku || ""}
+                  placeholder={editing ? "Not assigned" : "Generated when product is created"}
+                  readOnly
+                />
+                <small className="adm-small adm-muted">
+                  {editing ? "SKU is generated by the backend and cannot be changed." : "The backend generates an SKU when this product is saved."}
+                </small>
+              </div>
+            </div>
+
+            <div className="fg">
+              <label>Description</label>
+
+              <textarea
+                value={description}
+                placeholder="Product description…"
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            </div>
+
+            <div className="fg">
+              <label>
+                Image{" "}
+                <small
+                  style={{
+                    textTransform: "none",
+                    fontWeight: 400,
+                    color: "var(--adm-text2)",
+                  }}
+                >
+                  (JPG/PNG/WEBP)
+                </small>
+              </label>
+
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/*"
+                onChange={(event) =>
+                  setImageFile(event.target.files?.[0] || null)
+                }
+              />
+            </div>
+
+            <div className="fg">
+              <label>3D model (.glb)</label>
+              <input
+                ref={modelFileInputRef}
+                type="file"
+                accept=".glb,model/gltf-binary"
+                disabled={uploadingModel}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+
+                  if (file) {
+                    void uploadModel(file);
+                  }
+                }}
+              />
+              <small className="adm-small adm-muted">
+                Maximum file size: 25 MB. {uploadingModel ? "Uploading…" : ""}
+              </small>
+              <input
+                type="url"
+                value={modelUrl}
+                placeholder="Paste a .glb URL"
+                aria-label="3D model URL"
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setModelUrl(value);
+                  setModelFileName(
+                    value.split(/[?#]/, 1)[0].split("/").pop() || "",
+                  );
+                }}
+              />
+              {modelFileName && (
+                <div className="adm-small adm-muted">
+                  Model file: {modelFileName}
+                </div>
+              )}
+              {modelUrl && (
+                <>
+                  <button
+                    type="button"
+                    className="adm-btn adm-btn-d adm-btn-s"
+                    disabled={uploadingModel}
+                    onClick={() => {
+                      setModelUrl("");
+                      setModelFileName("");
+                      if (modelFileInputRef.current) {
+                        modelFileInputRef.current.value = "";
+                      }
+                    }}
+                  >
+                    Remove model
+                  </button>
+                  <div className="adm-model-preview">
+                    <ProductModelViewer
+                      key={modelUrl}
+                      modelUrl={modelUrl}
+                      productName={name || "Product preview"}
+                      poster={getProductImageUrl(editing?.img_url)}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <section className="an-section">
+              <div className="adm-mh">
+                <h4>Variants</h4>
+                <button
+                  type="button"
+                  className="adm-btn adm-btn-o adm-btn-s"
+                  onClick={() => setVariantDrafts((current) => [
+                    ...current,
+                    { variant_name: "", option_value: "", price_adjustment: 0, stock: 0 },
+                  ])}
+                >
+                  Add variant
+                </button>
+              </div>
+              <p className="adm-small adm-muted">
+                Variant price adjustments are in PHP and added to the base product price.
+              </p>
+              {!variantDrafts.length && <p className="adm-muted adm-small">No variants added.</p>}
+              {variantDrafts.map((variant, index) => (
+                <div className="fr" key={variant.id || `new-${index}`}>
+                  <div className="fg">
+                    <label>Variant name</label>
+                    <input value={variant.variant_name} placeholder="Color" onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, variant_name: event.target.value } : row))} />
+                  </div>
+                  <div className="fg">
+                    <label>Option value</label>
+                    <input value={variant.option_value} placeholder="Red" onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, option_value: event.target.value } : row))} />
+                  </div>
+                  <div className="fg">
+                    <label>Price adjustment (PHP)</label>
+                    <input type="number" step="0.01" value={(variant.price_adjustment / 100).toFixed(2)} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, price_adjustment: Math.round(Number(event.target.value || 0) * 100) } : row))} />
+                  </div>
+                  <div className="fg">
+                    <label>Stock</label>
+                    <input type="number" min="0" step="1" value={variant.stock} readOnly={Boolean(variant.id)} onChange={(event) => setVariantDrafts((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, stock: Number(event.target.value) } : row))} />
+                  </div>
+                  <button type="button" className="adm-btn adm-btn-d adm-btn-s" aria-label={`Remove variant ${index + 1}`} onClick={() => setVariantDrafts((current) => current.filter((_, rowIndex) => rowIndex !== index))}>Remove</button>
+                </div>
+              ))}
+              <p className="adm-small adm-muted">The legacy variant schema does not support a per-variant SKU.</p>
+              {variantsLoading && <p className="adm-small adm-muted">Loading existing variants…</p>}
+              {variantLoadError && <p className="adm-small" role="alert">{variantLoadError}. Close and reopen the product to retry.</p>}
+            </section>
+
+            <div className="adm-mf">
+              <button
+                className="adm-btn adm-btn-o"
+                onClick={() => setModalOpen(false)}
+                disabled={saving || uploadingModel || variantsLoading || Boolean(variantLoadError)}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="adm-btn adm-btn-p"
+                onClick={saveProduct}
+                disabled={saving || uploadingModel || variantsLoading || Boolean(variantLoadError)}
+              >
+                {saving ? "Saving…" : "Save Product"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function StatCard({
+  icon,
+  iconClass,
+  value,
+  label,
+}: {
+  icon: LucideIcon;
+  iconClass: string;
+  value: string | number;
+  label: string;
+}) {
+  const Icon = icon;
+  return (
+    <div className="adm-stat">
+      <div className={`adm-stat-icon ${iconClass}`}><Icon aria-hidden="true" /></div>
+
+      <div>
+        <div className="adm-stat-val">{value}</div>
+        <div className="adm-stat-lbl">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsStat({
+  value,
+  label,
+  sub,
+}: {
+  value: string | number;
+  label: string;
+  sub: string;
+}) {
+  return (
+    <div className="an-stat">
+      <div className="an-stat-val">{value}</div>
+      <div className="an-stat-lbl">{label}</div>
+      <div className="an-stat-sub">{sub}</div>
+    </div>
+  );
+}
+
+function QuickCard({
+  icon,
+  title,
+  description,
+  onClick,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  onClick: () => void;
+}) {
+  const Icon = icon;
+  return (
+    <button className="adm-qc" onClick={onClick}>
+      <div className="adm-qc-icon"><Icon aria-hidden="true" /></div>
+      <h3>{title}</h3>
+      <p>{description}</p>
+      <div className="adm-qc-arr">Open →</div>
+    </button>
+  );
+}
+
+function PlaceholderView({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div>
+      <div className="adm-ph">
+        <div>
+          <div className="adm-ph-title">{title}</div>
+          <div className="adm-ph-sub">{description}</div>
+        </div>
+      </div>
+
+      <div className="adm-tw">
+        <div className="adm-empty">
+          This section will be connected to the PHP API next.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function paymentLabel(method: string) {
+  const labels: Record<string, string> = {
+    gcash: "GCash",
+    maya: "Maya",
+    card: "Card",
+    cod: "COD",
+  };
+
+  return labels[method] || method;
+}
+
+const adminStyles = `
+:root {
+  --adm-bg: #050505;
+  --adm-surface: #0d0d0d;
+  --adm-card: #141414;
+  --adm-border: #303030;
+  --adm-primary: #ffffff;
+  --adm-accent: #aaaaaa;
+  --adm-danger: #cccccc;
+  --adm-warning: #aaaaaa;
+  --adm-success: #dddddd;
+  --adm-text: #ffffff;
+  --adm-text2: #888888;
+  --adm-sidebar: 240px;
+}
+
+.adm-page,
+.adm-page *,
+.adm-page *::before,
+.adm-page *::after {
+  box-sizing: border-box;
+}
+
+.adm-page {
+  min-height: 100vh;
+  background: var(--adm-bg);
+  color: var(--adm-text);
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.adm-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.adm-sidebar {
+  width: var(--adm-sidebar);
+  background: var(--adm-surface);
+  border-right: 1px solid var(--adm-border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 1000;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.adm-logo {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--adm-border);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.adm-logo img {
+  height: 1.75rem;
+  width: auto;
+}
+
+.adm-logo-text {
+  font-size: 0.7rem;
+  color: var(--adm-primary);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.adm-nav {
+  flex: 1;
+  padding: 0.75rem 0;
+  overflow-y: auto;
+}
+
+.adm-nav-section {
+  padding: 0.75rem 1.25rem 0.25rem;
+  font-size: 0.62rem;
+  color: var(--adm-text2);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+
+.adm-nav-link {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 1.25rem;
+  color: var(--adm-text2);
+  background: transparent;
+  border: 0;
+  border-left: 2px solid transparent;
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.adm-nav-link:hover {
+  color: var(--adm-text);
+  background: #171717;
+}
+
+.adm-nav-link.active {
+  color: var(--adm-primary);
+  border-left-color: var(--adm-primary);
+  background: #1b1b1b;
+  font-weight: 600;
+}
+
+.adm-sidebar-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--adm-border);
+  font-size: 0.75rem;
+  color: var(--adm-text2);
+}
+
+.adm-sidebar-signout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  width: 100%;
+}
+
+.adm-main {
+  margin-left: var(--adm-sidebar);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.adm-topbar {
+  background: var(--adm-surface);
+  border-bottom: 1px solid var(--adm-border);
+  padding: 0 2rem;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 99;
+}
+
+.adm-breadcrumb {
+  font-size: 0.82rem;
+  color: var(--adm-text2);
+}
+
+.adm-breadcrumb span {
+  color: var(--adm-text);
+  font-weight: 600;
+}
+
+.adm-user-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--adm-text2);
+}
+
+.adm-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg,var(--adm-primary),var(--adm-accent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #000;
+}
+
+.adm-content {
+  padding: 1.75rem 2rem;
+  flex: 1;
+}
+
+.adm-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.adm-stat {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.adm-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-weight: 800;
+}
+
+.ic-teal {
+  background: #303030;
+  color: var(--adm-primary);
+}
+
+.ic-green {
+  background: rgba(255,255,255,0.05);
+  color: var(--adm-success);
+}
+
+.ic-orange {
+  background: rgba(255,255,255,0.05);
+  color: var(--adm-warning);
+}
+
+.adm-stat-val {
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.adm-stat-lbl {
+  font-size: 0.75rem;
+  color: var(--adm-text2);
+  margin-top: 0.2rem;
+}
+
+.adm-ph {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.adm-ph-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.adm-ph-sub {
+  font-size: 0.82rem;
+  color: var(--adm-text2);
+  margin-top: 0.15rem;
+}
+
+.adm-section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.adm-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.adm-search {
+  position: relative;
+  flex: 1;
+  min-width: 180px;
+}
+
+.adm-search input {
+  width: 100%;
+  background: var(--adm-card);
+  border: 1px solid var(--adm-border);
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem 0.55rem 2.25rem;
+  color: var(--adm-text);
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.adm-search input:focus {
+  border-color: var(--adm-primary);
+}
+
+.adm-search-icon {
+  position: absolute;
+  left: 0.7rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--adm-text2);
+  pointer-events: none;
+}
+
+.adm-sel {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-border);
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  color: var(--adm-text);
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.adm-tw {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid var(--adm-border);
+}
+
+.adm-t {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.adm-t thead {
+  background: rgba(255,255,255,0.02);
+}
+
+.adm-t th {
+  padding: 0.8rem 1rem;
+  text-align: left;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--adm-text2);
+  font-weight: 700;
+  border-bottom: 1px solid var(--adm-border);
+}
+
+.adm-t td {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #171717;
+  vertical-align: middle;
+}
+
+.adm-t tr:last-child td {
+  border-bottom: none;
+}
+
+.adm-t tr:hover td {
+  background: rgba(255,255,255,0.015);
+}
+
+.adm-t img {
+  width: 38px;
+  height: 38px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--adm-border);
+}
+
+.b {
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.b-g {
+  background: rgba(255,255,255,0.05);
+  color: #dddddd;
+}
+
+.b-r {
+  background: rgba(255,255,255,0.05);
+  color: #cccccc;
+}
+
+.b-o {
+  background: rgba(255,255,255,0.05);
+  color: #aaaaaa;
+}
+
+.b-t {
+  background: #303030;
+  color: #ffffff;
+}
+
+.b-gray {
+  background: rgba(255,255,255,0.05);
+  color: #888888;
+}
+
+.adm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+
+.adm-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.adm-btn-p {
+  background: var(--adm-primary);
+  color: #000;
+}
+
+.adm-btn-p:hover:not(:disabled) {
+  background: var(--adm-accent);
+}
+
+.adm-btn-o {
+  background: transparent;
+  border: 1px solid var(--adm-border);
+  color: var(--adm-text2);
+}
+
+.adm-btn-o:hover:not(:disabled) {
+  border-color: var(--adm-primary);
+  color: var(--adm-primary);
+}
+
+.adm-btn-d {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #cccccc;
+}
+
+.adm-btn-d:hover:not(:disabled) {
+  background: rgba(255,255,255,0.06);
+}
+
+.adm-btn-s {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.76rem;
+}
+
+.adm-btn-full {
+  width: 100%;
+}
+
+.adm-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.adm-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.adm-modal-box {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-border);
+  border-radius: 14px;
+  padding: 1.75rem;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.adm-refund-confirm-backdrop {
+  z-index: 2200;
+}
+
+.adm-refund-confirm {
+  position: relative;
+  max-width: 500px;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+}
+
+.adm-refund-confirm-mark {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 1.1rem;
+  place-items: center;
+  border: 1px solid #39764d;
+  border-radius: 50%;
+  background: rgba(57, 118, 77, 0.15);
+  color: #8ee0a5;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.adm-refund-confirm.rejected .adm-refund-confirm-mark {
+  border-color: #8a4141;
+  background: rgba(138, 65, 65, 0.15);
+  color: #ef9a9a;
+}
+
+.adm-refund-confirm-eyebrow {
+  margin-bottom: 0.45rem;
+  color: var(--adm-text2);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.adm-refund-confirm h2 {
+  margin: 0;
+  color: var(--adm-text);
+  font-size: 1.35rem;
+}
+
+.adm-refund-confirm-copy {
+  margin: 0.6rem 0 1.25rem;
+  color: var(--adm-text2);
+  line-height: 1.6;
+}
+
+.adm-refund-confirm-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.adm-refund-confirm-details > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.adm-refund-confirm-details dt {
+  color: var(--adm-text2);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.adm-refund-confirm-details dd {
+  overflow-wrap: anywhere;
+  color: var(--adm-text);
+  font-size: 0.82rem;
+}
+
+.adm-refund-confirm-reason {
+  grid-column: 1 / -1;
+}
+
+.adm-refund-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 1.4rem;
+}
+
+.adm-refund-confirm-actions .adm-btn {
+  min-height: 40px;
+  padding: 0.6rem 0.9rem;
+}
+
+.adm-order-modal {
+  width: min(100%, 1040px);
+  max-width: 1040px;
+  padding: 1.5rem;
+}
+
+.adm-order-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.adm-order-detail-grid .an-section {
+  min-width: 0;
+  margin: 0;
+  padding: 1.15rem;
+}
+
+.adm-order-detail-grid .adm-order-update-section {
+  grid-column: span 2;
+}
+
+.adm-order-detail-grid .adm-order-history-section {
+  grid-column: span 1;
+}
+
+.adm-order-modal > .an-section {
+  margin-top: 1rem;
+  padding: 1.15rem;
+}
+
+.adm-order-detail-grid .an-section h4,
+.adm-order-modal > .an-section h4 {
+  margin: 0 0 1rem;
+  line-height: 1.35;
+}
+
+.adm-order-info {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0;
+  font-size: 0.8rem;
+}
+
+.adm-order-info span {
+  flex: 0 0 36%;
+  color: var(--adm-text2);
+}
+
+.adm-order-info strong {
+  flex: 1 1 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.adm-order-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem 1rem;
+}
+
+.adm-order-form-grid .fg {
+  min-width: 0;
+  margin-bottom: 0.75rem;
+}
+
+.adm-order-form-grid .fg label {
+  min-height: 1.8em;
+  line-height: 1.4;
+}
+
+.adm-order-form-grid .fg select,
+.adm-order-form-grid .fg input,
+.adm-order-form-grid .fg textarea {
+  min-width: 0;
+}
+
+.adm-order-update-section > .adm-btn {
+  margin-top: 0.25rem;
+}
+
+.adm-order-address {
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.adm-order-history {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.adm-order-history li {
+  padding: 0.25rem 0 0.75rem 0.25rem;
+  border-bottom: 1px solid var(--adm-border);
+}
+
+.adm-order-history li:last-child {
+  border-bottom: 0;
+}
+
+.adm-order-history time {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--adm-text2);
+  font-size: 0.75rem;
+}
+
+.adm-order-history p {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+}
+
+.adm-model-preview .product-model-viewer {
+  height: 280px;
+}
+
+.adm-model-preview .product-model-viewer-wrap > p {
+  font-size: 0.72rem;
+}
+
+.adm-mh {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.adm-mt {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.adm-mx {
+  background: none;
+  border: none;
+  color: var(--adm-text2);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.2rem;
+}
+
+.adm-mx:hover {
+  color: var(--adm-text);
+}
+
+.adm-mf {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
+.fg {
+  margin-bottom: 0.9rem;
+}
+
+.fg label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--adm-text2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.35rem;
+}
+
+.fg input,
+.fg select,
+.fg textarea {
+  width: 100%;
+  background: var(--adm-surface);
+  border: 1px solid var(--adm-border);
+  border-radius: 7px;
+  padding: 0.65rem 0.85rem;
+  color: var(--adm-text);
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.fg input:focus,
+.fg select:focus,
+.fg textarea:focus {
+  border-color: var(--adm-primary);
+}
+
+.fg textarea {
+  resize: vertical;
+  min-height: 75px;
+}
+
+.fg select option {
+  background: var(--adm-surface);
+}
+
+.fg input[type=file] {
+  color: var(--adm-text2);
+  padding: 0.45rem 0.85rem;
+}
+
+.fr {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+
+.adm-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--adm-bg);
+  color: var(--adm-text);
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.adm-gate-box {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-border);
+  border-radius: 14px;
+  padding: 2.25rem;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.adm-gate-box img {
+  height: 2.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.adm-gate-box h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.adm-gate-box p {
+  font-size: 0.83rem;
+  color: var(--adm-text2);
+  margin-bottom: 1.25rem;
+}
+
+.adm-code-error {
+  color: var(--adm-danger) !important;
+  font-size: 0.8rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0 !important;
+}
+
+.adm-empty {
+  text-align: center;
+  padding: 3.5rem 2rem;
+  color: var(--adm-text2);
+  font-size: 0.875rem;
+}
+
+.adm-spin {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--adm-border);
+  border-top-color: var(--adm-primary);
+  border-radius: 50%;
+  animation: adm-spin 0.6s linear infinite;
+  margin: 2rem auto;
+}
+
+@keyframes adm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.adm-loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.18);
+  z-index: 5000;
+  pointer-events: none;
+}
+
+.adm-loading-overlay .adm-spin {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  margin: -14px 0 0 -14px;
+}
+
+.adm-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 6000;
+  background: var(--adm-card);
+  border: 1px solid var(--adm-border);
+  border-radius: 9px;
+  padding: 0.8rem 1.1rem;
+  font-size: 0.83rem;
+  font-weight: 500;
+  min-width: 200px;
+}
+
+.adm-toast.success {
+  border-left: 3px solid var(--adm-success);
+}
+
+.adm-toast.error {
+  border-left: 3px solid var(--adm-danger);
+}
+
+.adm-toast.info {
+  border-left: 3px solid var(--adm-primary);
+}
+
+.adm-qgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
+  gap: 1rem;
+}
+
+.adm-qc {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  text-decoration: none;
+  color: var(--adm-text);
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adm-qc:hover {
+  border-color: var(--adm-primary);
+  transform: translateY(-2px);
+}
+
+.adm-qc-icon {
+  font-size: 1.6rem;
+}
+
+.adm-qc h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.adm-qc p {
+  font-size: 0.78rem;
+  color: var(--adm-text2);
+  line-height: 1.5;
+}
+
+.adm-qc-arr {
+  margin-top: auto;
+  color: var(--adm-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.adm-muted {
+  color: var(--adm-text2);
+}
+
+.adm-small {
+  font-size: 0.76rem;
+}
+
+.adm-mono {
+  font-family: monospace;
+  font-size: 0.76rem;
+}
+
+.an-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.an-stat {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+}
+
+.an-stat-val {
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--adm-text);
+}
+
+.an-stat-lbl {
+  font-size: 0.73rem;
+  color: var(--adm-text2);
+  margin-top: 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.an-stat-sub {
+  font-size: 0.78rem;
+  color: var(--adm-primary);
+  margin-top: 0.2rem;
+  font-weight: 600;
+}
+
+.an-section {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.an-section h4 {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--adm-text);
+  margin-bottom: 1rem;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.bar-label {
+  font-size: 0.76rem;
+  color: var(--adm-text2);
+  width: 60px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.bar-track {
+  flex: 1;
+  height: 28px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg,var(--adm-primary),#AAAAAA);
+  transition: width 0.6s ease;
+  display: flex;
+  align-items: center;
+  padding-left: 0.5rem;
+}
+
+.bar-val {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #000;
+  white-space: nowrap;
+}
+
+.bar-orders {
+  font-size: 0.72rem;
+  color: var(--adm-text2);
+  min-width: 55px;
+  text-align: right;
+}
+
+.top-prod-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--adm-border);
+}
+
+.top-prod-row:last-child {
+  border-bottom: none;
+}
+
+.top-prod-row img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--adm-border);
+}
+
+.top-rank {
+  color: var(--adm-text2);
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-width: 20px;
+}
+
+.top-product-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--adm-text);
+}
+
+.top-product-qty {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--adm-primary);
+}
+
+.an-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+@media(max-width:700px) {
+  .adm-order-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .adm-order-detail-grid .adm-order-update-section,
+  .adm-order-detail-grid .adm-order-history-section {
+    grid-column: auto;
+  }
+
+  .adm-order-modal {
+    padding: 1rem;
+  }
+
+  .adm-order-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .an-two {
+    grid-template-columns: 1fr;
+  }
+
+  .adm-sidebar {
+    width: 200px;
+  }
+
+  .adm-main {
+    margin-left: 200px;
+  }
+
+  .adm-content {
+    padding: 1rem;
+  }
+
+  .adm-topbar {
+    padding: 0 1rem;
+  }
+
+  .fr {
+    grid-template-columns: 1fr;
+  }
+}
+`;

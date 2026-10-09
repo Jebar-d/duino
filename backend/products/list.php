@@ -70,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 // ------------------------------------------------------------
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/inventory.php';
 
 
 // ------------------------------------------------------------
@@ -100,6 +101,7 @@ $sql = "
         p.tags,
         p.weight_g,
         p.sku,
+        p.low_stock_threshold,
 
         c.name AS category_name,
         c.slug AS category_slug
@@ -186,16 +188,20 @@ try {
         }
 
         $variantQuery = $db->prepare(
-            'SELECT id, product_id, variant_name, option_value, price_adjustment, stock, img_url
-             FROM variants
-             WHERE product_id IN (' . implode(', ', $placeholders) . ')
-             ORDER BY variant_name, option_value'
+            'SELECT v.id, v.product_id, v.variant_name, v.option_value,
+                    v.price_adjustment, v.stock, v.img_url, p.low_stock_threshold
+             FROM variants v
+             INNER JOIN products p ON p.id = v.product_id
+             WHERE v.product_id IN (' . implode(', ', $placeholders) . ')
+             ORDER BY v.variant_name, v.option_value'
         );
         $variantQuery->execute($variantParams);
         $variantsByProduct = [];
         foreach ($variantQuery->fetchAll(PDO::FETCH_ASSOC) as $variant) {
             $variant['price_adjustment'] = (int) $variant['price_adjustment'];
             $variant['stock'] = (int) $variant['stock'];
+            $variant['low_stock_threshold'] = (int) $variant['low_stock_threshold'];
+            $variant['availability'] = inventoryAvailability($variant['stock'], $variant['low_stock_threshold']);
             $variantsByProduct[$variant['product_id']][] = $variant;
         }
 
@@ -271,6 +277,12 @@ try {
 
         $product['stock'] =
             (int) $product['stock'];
+        $product['low_stock_threshold'] =
+            (int) $product['low_stock_threshold'];
+        $product['availability'] =
+            inventoryAvailability($product['stock'], $product['low_stock_threshold']);
+        $product['is_low_stock'] =
+            $product['availability'] === 'low_stock';
 
         if ($product['weight_g'] !== null) {
             $product['weight_g'] =

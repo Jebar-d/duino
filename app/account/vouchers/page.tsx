@@ -7,6 +7,7 @@ import { Card } from "../../../components/ui/8bit/card";
 import { Alert, AlertDescription } from "../../../components/ui/8bit/alert";
 import { Skeleton } from "../../../components/ui/8bit/skeleton";
 import { toast } from "../../../components/ui/8bit/toast";
+import { getPromoStatus } from "../../../lib/promo-status";
 
 type Promo = {
   id: string;
@@ -14,6 +15,9 @@ type Promo = {
   discount_percent: number;
   valid_from: string | null;
   valid_until: string;
+  expiration_at?: string | null;
+  status?: string | null;
+  is_expired?: boolean;
   max_uses: number | null;
   used_count: number;
   is_free_shipping: boolean;
@@ -37,23 +41,37 @@ export default function VouchersPage() {
   useEffect(() => {
     let cancelled = false;
 
-    apiFetch<{ promos: Promo[] }>("/promos/list.php")
-      .then((data) => {
-        if (!cancelled) setPromos(data.promos);
-      })
-      .catch((err) => {
+    async function loadPromos() {
+      try {
+        const data = await apiFetch<{ promos: Promo[] }>("/promos/list.php");
+        if (!cancelled) {
+          setPromos(data.promos);
+          setError("");
+        }
+      } catch (err) {
         if (!cancelled) {
           setError(
             err instanceof Error ? err.message : "Unable to load vouchers.",
           );
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    }
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void loadPromos();
+      }
+    };
+    void loadPromos();
+    const interval = window.setInterval(() => void loadPromos(), 60_000);
+    window.addEventListener("focus", refreshWhenVisible);
 
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshWhenVisible);
     };
   }, []);
 
@@ -88,12 +106,16 @@ export default function VouchersPage() {
           <p className="acct-muted">Loading vouchers…</p>
         ) : available.length === 0 ? (
           <div className="acct-empty">
-            <h2>No active vouchers</h2>
+            <h2>No vouchers available</h2>
             <p>Check back later for new promo codes.</p>
           </div>
         ) : (
           <div className="voucher-grid">
-            {available.map((promo) => (
+            {available.map((promo) => {
+              const status = getPromoStatus(promo);
+              const expired = status === "expired";
+
+              return (
               <Card key={promo.id} className="voucher-card">
                 <div className="voucher-value">
                   {promo.is_free_shipping && promo.discount_percent === 0
@@ -101,6 +123,9 @@ export default function VouchersPage() {
                     : `${promo.discount_percent}% OFF`}
                 </div>
                 <div className="voucher-code">{promo.code}</div>
+                <span className={expired ? "b b-r" : status === "active" ? "b b-g" : "b b-o"}>
+                  {status === "expired" ? "Expired" : status === "active" ? "Active" : status}
+                </span>
                 {promo.description && <p>{promo.description}</p>}
                 <ul>
                   {promo.is_free_shipping && promo.discount_percent > 0 && (
@@ -118,20 +143,22 @@ export default function VouchersPage() {
                   <li>
                     Valid until{" "}
                     {new Date(
-                      promo.valid_until.replace(" ", "T"),
-                    ).toLocaleDateString()}
+                      (promo.expiration_at || promo.valid_until).replace(" ", "T"),
+                    ).toLocaleDateString("en-PH")}
                   </li>
                 </ul>
                 <Button
                   variant="outline"
                   type="button"
                   className="acct-btn primary"
+                  disabled={status !== "active"}
                   onClick={() => copy(promo.code)}
                 >
-                  {copied === promo.code ? "Copied!" : "Copy code"}
+                  {expired ? "Expired" : copied === promo.code ? "Copied!" : "Copy code"}
                 </Button>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

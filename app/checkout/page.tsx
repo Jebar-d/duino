@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "../../lib/api";
+import { ApiError, apiFetch } from "../../lib/api";
 import { useSession } from "../../components/SessionProvider";
 import { Button } from "../../components/ui/8bit/button";
 import { Input } from "../../components/ui/8bit/input";
@@ -56,6 +56,9 @@ type PromoResponse = {
     description: string | null;
     valid_from: string;
     valid_until: string;
+    expiration_at?: string | null;
+    status?: string | null;
+    is_expired?: boolean;
   };
   original_total_cents: number;
   discount_cents: number;
@@ -105,6 +108,7 @@ export default function CheckoutPage() {
   const [saveAddress, setSaveAddress] = useState(false);
   const shippingTouched = useRef(false);
   const prefetchedAddress = useRef(false);
+  const submitLock = useRef(false);
   const [onlineEnabled, setOnlineEnabled] = useState(true);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [notes, setNotes] = useState("");
@@ -303,6 +307,12 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (submitLock.current) {
+      return;
+    }
+
+    submitLock.current = true;
+
     try {
       setIsSubmitting(true);
       setMessage("");
@@ -369,10 +379,34 @@ export default function CheckoutPage() {
         router.push(orderUrl);
       }
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Unable to create order.",
-      );
+      let errorMessage =
+        error instanceof Error ? error.message : "Unable to create order.";
+
+      if (error instanceof ApiError && error.errorCode === "PROMO_EXPIRED") {
+        setPromo(null);
+        setDiscountCents(0);
+      }
+
+      if (
+        error instanceof ApiError &&
+        (error.status === 409 || error.errorCode === "INSUFFICIENT_STOCK")
+      ) {
+        try {
+          const refreshedCart = await apiFetch<CartResponse>("/cart/list.php");
+          setItems(refreshedCart.items || []);
+          setSubtotalCents(refreshedCart.total_cents || 0);
+        } catch (refreshError) {
+          const refreshMessage =
+            refreshError instanceof Error
+              ? refreshError.message
+              : "Unable to refresh cart inventory.";
+          errorMessage = `${errorMessage} ${refreshMessage}`;
+        }
+      }
+
+      setMessage(errorMessage);
     } finally {
+      submitLock.current = false;
       setIsSubmitting(false);
     }
   }

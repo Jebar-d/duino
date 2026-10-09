@@ -23,6 +23,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "GET") {
 }
 
 require_once __DIR__ . "/../config/database.php";
+require_once __DIR__ . "/../config/promos.php";
 
 $pdo = getDatabaseConnection();
 
@@ -40,7 +41,6 @@ try {
             min_order_cents,
             description
         FROM promos
-        WHERE valid_until >= NOW()
         ORDER BY valid_until ASC
     ");
 
@@ -54,6 +54,9 @@ try {
                 "discount_percent" => (int) ($promo["discount_percent"] ?? 0),
                 "valid_from" => $promo["valid_from"],
                 "valid_until" => $promo["valid_until"],
+                "expiration_at" => promoDateTimeForResponse($promo["valid_until"]),
+                "status" => promoExpirationStatus($promo),
+                "is_expired" => promoExpirationStatus($promo) === "expired",
                 "max_uses" => $promo["max_uses"] !== null
                     ? (int) $promo["max_uses"]
                     : null,

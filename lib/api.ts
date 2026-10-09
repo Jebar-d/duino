@@ -1,6 +1,17 @@
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost/arduino-store/backend";
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly errorCode?: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options?: RequestInit,
@@ -19,7 +30,11 @@ export async function apiFetch<T>(
   const data = await response.json();
 
   if (!response.ok || data.success === false) {
-    throw new Error(data.message || "API request failed.");
+    throw new ApiError(
+      data.message || "API request failed.",
+      response.status,
+      data.error_code,
+    );
   }
 
   return data;

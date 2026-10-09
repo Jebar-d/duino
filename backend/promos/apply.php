@@ -25,6 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 }
 
 require_once __DIR__ . "/../config/database.php";
+require_once __DIR__ . "/../config/promos.php";
 
 $pdo = getDatabaseConnection();
 
@@ -102,6 +103,17 @@ try {
     $timezone = new DateTimeZone("Asia/Manila");
     $now = new DateTimeImmutable("now", $timezone);
 
+    if (promoExpirationStatus($promo, $now) === "expired") {
+        http_response_code(400);
+        echo json_encode([
+            "success" => false,
+            "message" => "This promo code has expired.",
+            "error_code" => "PROMO_EXPIRED",
+            "is_expired" => true
+        ]);
+        exit;
+    }
+
     if (!empty($promo["valid_from"])) {
         $validFrom = new DateTimeImmutable(
             (string) $promo["valid_from"],
@@ -124,11 +136,13 @@ try {
             $timezone
         );
 
-        if ($now > $validUntil) {
+        if ($now >= $validUntil) {
             http_response_code(400);
             echo json_encode([
                 "success" => false,
-                "message" => "This promo code has expired."
+                "message" => "This promo code has expired.",
+                "error_code" => "PROMO_EXPIRED",
+                "is_expired" => true
             ]);
             exit;
         }
@@ -206,7 +220,10 @@ try {
             "min_order_cents" => $minOrderCents,
             "description" => $promo["description"],
             "valid_from" => $promo["valid_from"],
-            "valid_until" => $promo["valid_until"]
+            "valid_until" => $promo["valid_until"],
+            "expiration_at" => promoDateTimeForResponse($promo["valid_until"]),
+            "status" => promoExpirationStatus($promo),
+            "is_expired" => promoExpirationStatus($promo) === "expired"
         ],
         "original_total_cents" => $totalCents,
         "discount_cents" => $discountCents,

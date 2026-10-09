@@ -14,37 +14,37 @@ export const inputVariants = cva("", {
     },
   },
   defaultVariants: {
-    font: "normal",
+    font: "retro",
   },
 });
 
 export interface BitTextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement>,
-    VariantProps<typeof inputVariants> {}
+    VariantProps<typeof inputVariants> {
+  asChild?: boolean;
+}
 
-function Textarea({ className, font = "normal", ...props }: BitTextareaProps) {
+function Textarea({ ...props }: BitTextareaProps) {
+  const { className, font } = props;
+
   return (
-    <div
-      className={cn(
-        "relative w-full border-y-2 border-foreground dark:border-ring",
-        className
-      )}
-    >
+    <div className={cn("relative w-full", className)}>
       <ShadcnTextarea
         {...props}
         className={cn(
-          "min-h-24 w-full resize-y rounded-none border-0 px-3 py-2 text-sm transition-transform ring-0",
-          font !== "normal" && "retro"
+          "rounded-none transition-transform ring-0 border-0",
+          font !== "normal" && "retro",
+          className
         )}
       />
 
       <div
-        className="pointer-events-none absolute inset-0 border-y-2 border-foreground dark:border-ring"
+        className="absolute inset-0 border-y-6 -my-1.5 border-foreground dark:border-ring pointer-events-none"
         aria-hidden="true"
       />
 
       <div
-        className="pointer-events-none absolute inset-0 border-x-2 border-foreground dark:border-ring"
+        className="absolute inset-0 border-x-6 -mx-1.5 border-foreground dark:border-ring pointer-events-none"
         aria-hidden="true"
       />
     </div>

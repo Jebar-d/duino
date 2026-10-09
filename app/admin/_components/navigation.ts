@@ -1,4 +1,4 @@
-import { BarChart3, Banknote, Box, ChartNoAxesColumnIncreasing, KeyRound, LayoutDashboard, Mail, Package, Percent, RotateCcw, Tags, TicketPercent, Truck, Users } from "lucide-react";
+import { BarChart3, KeyRound, LayoutDashboard, Mail, Package, RotateCcw, TicketPercent, Truck, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Tab } from "./types";
 
@@ -10,8 +10,7 @@ export const tabs: {
 }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, section: "Overview" },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
-  { id: "products", label: "Products", icon: Package, section: "Catalog" },
-  { id: "categories", label: "Categories", icon: Tags },
+  { id: "inventory", label: "Inventory", icon: Package, section: "Catalog" },
   { id: "promos", label: "Promos", icon: TicketPercent },
   { id: "orders", label: "Orders", icon: Truck, section: "Manage" },
   { id: "users", label: "Users", icon: Users },
