@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
+import { useSession } from "../../components/SessionProvider";
 
 type LoginResponse = {
   success: boolean;
@@ -25,6 +26,7 @@ type LoginResponse = {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refresh } = useSession();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,7 +53,10 @@ export default function LoginPage() {
         }),
       });
 
-      router.push("/");
+      // Reload who is logged in, then send admins to the admin panel
+      // and everyone else to the store.
+      const account = await refresh();
+      router.push(account?.role === "admin" ? "/admin" : "/");
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to log in.");

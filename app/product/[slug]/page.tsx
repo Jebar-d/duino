@@ -14,6 +14,15 @@ const ProductModelViewer = dynamic(
   },
 );
 
+type Variant = {
+  id: string;
+  variant_name: string;
+  option_value: string;
+  price_adjustment: number;
+  stock: number;
+  img_url: string | null;
+};
+
 type Product = {
   id: string;
   name: string;
@@ -111,6 +120,8 @@ export default function ProductDetailPage() {
   const [reviewMessage, setReviewMessage] = useState("");
   const [reviewError, setReviewError] = useState("");
   const [selectedMedia, setSelectedMedia] = useState<"image" | "model">("image");
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [selectedVariantId, setSelectedVariantId] = useState("");
 
   useEffect(() => {
     if (!slug) {
@@ -297,15 +308,54 @@ export default function ProductDetailPage() {
       return;
     }
 
-    setQuantity((current) => Math.min(current + 1, product.stock));
+    setQuantity((current) => Math.min(current + 1, activeStock));
   };
 
   const decreaseQuantity = () => {
     setQuantity((current) => Math.max(current - 1, 1));
   };
 
+  useEffect(() => {
+    const productId = product?.id ?? "";
+
+    if (!productId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    apiFetch<{ variants: Variant[] }>(
+      `/variants/list.php?product_id=${encodeURIComponent(productId)}`,
+    )
+      .then((data) => {
+        if (!cancelled) {
+          setVariants(data.variants ?? []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setVariants([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product?.id]);
+
+  const selectedVariant =
+    variants.find((variant) => variant.id === selectedVariantId) ?? null;
+  const activePriceCents =
+    (product?.price_cents ?? 0) + (selectedVariant?.price_adjustment ?? 0);
+  const activeStock = selectedVariant ? selectedVariant.stock : (product?.stock ?? 0);
+
   const addToCart = async () => {
     if (!product) {
+      return;
+    }
+
+    if (variants.length > 0 && !selectedVariant) {
+      setCartMessage("Please choose an option first.");
       return;
     }
 
@@ -318,10 +368,12 @@ export default function ProductDetailPage() {
         body: JSON.stringify({
           product_id: product.id,
           qty: quantity,
+          ...(selectedVariant ? { variant_id: selectedVariant.id } : {}),
         }),
       });
 
       setCartMessage("Added to cart.");
+      window.dispatchEvent(new Event("store:counts-changed"));
     } catch (error) {
       setCartMessage(
         error instanceof Error ? error.message : "Unable to add to cart.",
@@ -449,7 +501,9 @@ export default function ProductDetailPage() {
   return (
     <main className="product-detail-page">
       <div className="product-detail-container">
-        <div className="product-detail-main">
+        <div
+          className={`product-detail-main${selectedMedia === "model" && modelUrl ? " is-3d" : ""}`}
+        >
           <div className="product-detail-image">
             {modelUrl && (
               <div className="product-media-tabs" role="tablist" aria-label="Product media">
@@ -515,13 +569,35 @@ export default function ProductDetailPage() {
             </div>
 
             <div className="product-detail-price">
-              {formatPrice(product.price_cents)}
+              {formatPrice(activePriceCents)}
             </div>
 
+            {variants.length > 0 && (
+              <div className="product-variants">
+                <span className="product-variants-label">
+                  {variants[0].variant_name}
+                </span>
+                <div className="product-variants-options">
+                  {variants.map((variant) => (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      disabled={variant.stock <= 0}
+                      className={variant.id === selectedVariantId ? "active" : ""}
+                      onClick={() => {
+                        setSelectedVariantId(variant.id);
+                        setQuantity(1);
+                      }}
+                    >
+                      {variant.option_value}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="product-detail-stock">
-              {product.stock > 0
-                ? `${product.stock} available`
-                : "Out of stock"}
+              {activeStock > 0 ? `${activeStock} available` : "Out of stock"}
             </div>
 
             {product.description && (
@@ -530,7 +606,7 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {product.stock > 0 && (
+            {activeStock > 0 && (
               <div className="product-detail-purchase">
                 <div className="product-quantity">
                   <button
@@ -546,7 +622,7 @@ export default function ProductDetailPage() {
                   <button
                     type="button"
                     onClick={increaseQuantity}
-                    disabled={quantity >= product.stock}
+                    disabled={quantity >= activeStock}
                   >
                     +
                   </button>

@@ -1,0 +1,413 @@
+/* ===== Session splash (shown briefly while we check the account type) ===== */
+.session-splash {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #000;
+  color: #888;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+/* ===== Header badges ===== */
+.icon-badge {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: #000;
+  border: 1px solid #000;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.s-count {
+  margin-left: auto;
+  min-width: 22px;
+  padding: 2px 6px;
+  text-align: center;
+  background: #fff;
+  color: #000;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* ===== Account tabs ===== */
+.account-tabs {
+  border-bottom: 1px solid #333;
+  background: #0a0a0a;
+}
+
+.account-tabs-inner {
+  width: min(var(--max-width), calc(100% - 40px));
+  margin: 0 auto;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.account-tabs a {
+  padding: 16px 18px;
+  color: #888;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+}
+
+.account-tabs a:hover {
+  color: #fff;
+}
+
+.account-tabs a.active {
+  color: #fff;
+  border-bottom-color: #fff;
+}
+
+/* ===== Shared account bits ===== */
+.acct-muted {
+  color: #888;
+  line-height: 1.6;
+}
+
+.acct-ok {
+  color: #fff;
+}
+
+.acct-warn {
+  color: #bbb;
+  text-decoration: underline;
+}
+
+.acct-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.acct-btn {
+  display: inline-block;
+  padding: 10px 16px;
+  border: 1px solid #555;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.acct-btn:hover:not(:disabled) {
+  border-color: #fff;
+}
+
+.acct-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.acct-btn.primary {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+
+.acct-btn.small {
+  padding: 6px 10px;
+  font-size: 0.7rem;
+}
+
+.acct-btn.danger:hover:not(:disabled) {
+  border-color: #fff;
+  text-decoration: line-through;
+}
+
+.acct-message {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border: 1px solid #555;
+  font-size: 0.9rem;
+}
+
+.acct-message.error {
+  border-style: dashed;
+  color: #ddd;
+}
+
+.acct-message.success {
+  border-color: #fff;
+  color: #fff;
+}
+
+.acct-empty {
+  max-width: 460px;
+  margin: 60px auto;
+  padding: 36px;
+  text-align: center;
+  border: 1px solid #333;
+  background: #0c0c0c;
+}
+
+.acct-empty p {
+  color: #888;
+  margin: 10px 0 20px;
+}
+
+/* ===== Notifications ===== */
+.notif-list {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.notif-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid #333;
+  background: #0c0c0c;
+}
+
+.notif-item.unread {
+  border-color: #fff;
+  background: #141414;
+}
+
+.notif-title {
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notif-dot {
+  width: 8px;
+  height: 8px;
+  background: #fff;
+}
+
+.notif-body p {
+  margin: 6px 0;
+  color: #bbb;
+  line-height: 1.5;
+}
+
+.notif-meta {
+  font-size: 0.75rem;
+  color: #777;
+}
+
+.notif-meta a {
+  color: #fff;
+}
+
+.notif-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+/* ===== Vouchers ===== */
+.voucher-grid {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.voucher-card {
+  padding: 20px;
+  border: 2px dashed #555;
+  background: #0c0c0c;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voucher-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.voucher-code {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border: 1px solid #fff;
+  letter-spacing: 0.15em;
+  font-family: monospace;
+}
+
+.voucher-card p,
+.voucher-card ul {
+  margin: 0;
+  color: #999;
+  font-size: 0.85rem;
+}
+
+.voucher-card ul {
+  padding-left: 18px;
+  flex: 1;
+}
+
+/* ===== Addresses ===== */
+.addr-form {
+  margin-top: 20px;
+}
+
+.addr-grid {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.addr-card {
+  padding: 18px;
+  border: 1px solid #333;
+  background: #0c0c0c;
+}
+
+.addr-card p {
+  margin: 4px 0;
+  color: #aaa;
+}
+
+/* ===== Product variants ===== */
+.product-variants {
+  margin: 18px 0;
+}
+
+.product-variants-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #888;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.product-variants-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.product-variants-options button {
+  padding: 8px 14px;
+  border: 1px solid #555;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.product-variants-options button.active {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+
+.product-variants-options button:disabled {
+  opacity: 0.35;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+/* ===== Bigger 3D viewer ===== */
+.product-detail-main.is-3d {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+}
+
+.product-detail-main.is-3d .product-detail-image {
+  min-height: 0;
+  align-content: start;
+}
+
+.product-model-viewer-wrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #101010;
+}
+
+.product-model-viewer {
+  display: block;
+  width: 100%;
+  height: clamp(480px, 75vh, 820px);
+  --poster-color: transparent;
+  background: radial-gradient(circle at 50% 40%, #2a2a2a 0%, #101010 70%);
+}
+
+.product-model-viewer-wrap > p {
+  margin: 0;
+  padding: 10px 14px;
+  text-align: center;
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.product-model-toolbar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.product-model-toolbar button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #666;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.product-model-toolbar button:hover {
+  background: #fff;
+  color: #000;
+}
+
+.product-model-viewer-wrap:fullscreen {
+  background: #000;
+}
+
+.product-model-viewer-wrap:fullscreen .product-model-viewer {
+  height: 100%;
+  flex: 1;
+}
+
+.product-model-fallback {
+  padding: 40px;
+  color: #aaa;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .product-detail-main.is-3d {
+    grid-template-columns: 1fr;
+  }
+
+  .product-model-viewer {
+    height: clamp(380px, 60vh, 560px);
+  }
+}

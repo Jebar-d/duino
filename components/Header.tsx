@@ -1,44 +1,56 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
-
-type User = {
-  id: string;
-  email: string | null;
-  username: string | null;
-  first_name: string | null;
-  middle_name: string | null;
-  last_name: string | null;
-  suffix: string | null;
-  contact_number: string | null;
-  address: string | null;
-  terms_accepted: boolean;
-  rules_accepted: boolean;
-  created_at: string;
-};
+import { useSession } from "./SessionProvider";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const { user, loading: authLoading, setUser } = useSession();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [counts, setCounts] = useState({ cart: 0, wishlist: 0, unread: 0 });
 
+  const refreshCounts = useCallback(async () => {
+    if (!user) {
+      setCounts({ cart: 0, wishlist: 0, unread: 0 });
+      return;
+    }
+
+    const [cart, wishlist, notifications] = await Promise.allSettled([
+      apiFetch<{ total_quantity?: number }>("/cart/list.php"),
+      apiFetch<{ count?: number }>("/wishlist/list.php"),
+      apiFetch<{ unread_count?: number }>("/notifications/list.php?limit=1"),
+    ]);
+
+    setCounts({
+      cart: cart.status === "fulfilled" ? (cart.value.total_quantity ?? 0) : 0,
+      wishlist:
+        wishlist.status === "fulfilled" ? (wishlist.value.count ?? 0) : 0,
+      unread:
+        notifications.status === "fulfilled"
+          ? (notifications.value.unread_count ?? 0)
+          : 0,
+    });
+  }, [user]);
+
+  // Refresh the badges now, every 30 seconds, when the tab regains focus,
+  // and whenever another page announces a cart / wishlist / notification change.
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      try {
-        const data = await apiFetch<{ user: User }>("/auth/user/me.php");
-        setUser(data.user || null);
-      } catch {
-        setUser(null);
-      } finally {
-        setAuthLoading(false);
-      }
-    }, 0);
+    const first = setTimeout(() => void refreshCounts(), 0);
+    const timer = setInterval(() => void refreshCounts(), 30000);
+    const onChange = () => void refreshCounts();
 
-    return () => clearTimeout(timer);
-  }, []);
+    window.addEventListener("focus", onChange);
+    window.addEventListener("store:counts-changed", onChange);
+
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+      window.removeEventListener("focus", onChange);
+      window.removeEventListener("store:counts-changed", onChange);
+    };
+  }, [refreshCounts]);
 
   async function logout() {
     setLoggingOut(true);
@@ -163,6 +175,61 @@ export default function Header() {
               </Link>
             )}
 
+            {user && (
+              <Link
+                href="/account/notifications"
+                className="icon-btn"
+                title="Notifications"
+                aria-label="Notifications"
+                style={{ position: "relative" }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                {counts.unread > 0 && (
+                  <span className="icon-badge">
+                    {counts.unread > 99 ? "99+" : counts.unread}
+                  </span>
+                )}
+              </Link>
+            )}
+
+            {user && (
+              <Link
+                href="/wishlist"
+                className="icon-btn"
+                title="Wishlist"
+                aria-label="Wishlist"
+                style={{ position: "relative" }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+                {counts.wishlist > 0 && (
+                  <span className="icon-badge">{counts.wishlist}</span>
+                )}
+              </Link>
+            )}
+
             <Link
               href="/cart"
               className="icon-btn"
@@ -183,6 +250,11 @@ export default function Header() {
                 <circle cx="20" cy="21" r="1" />
                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
               </svg>
+              {counts.cart > 0 && (
+                <span className="icon-badge">
+                  {counts.cart > 99 ? "99+" : counts.cart}
+                </span>
+              )}
             </Link>
           </div>
         </div>
@@ -318,6 +390,7 @@ export default function Header() {
           >
             <span className="s-icon">🛒</span>
             <span className="s-label">Cart</span>
+            {counts.cart > 0 && <span className="s-count">{counts.cart}</span>}
           </Link>
 
           <Link
@@ -327,7 +400,24 @@ export default function Header() {
           >
             <span className="s-icon">♡</span>
             <span className="s-label">Wishlist</span>
+            {counts.wishlist > 0 && (
+              <span className="s-count">{counts.wishlist}</span>
+            )}
           </Link>
+
+          {user && (
+            <Link
+              href="/account/notifications"
+              className="s-item"
+              onClick={() => setMenuOpen(false)}
+            >
+              <span className="s-icon">🔔</span>
+              <span className="s-label">Notifications</span>
+              {counts.unread > 0 && (
+                <span className="s-count">{counts.unread}</span>
+              )}
+            </Link>
+          )}
 
           <div className="s-divider" />
 

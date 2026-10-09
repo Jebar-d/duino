@@ -10,6 +10,7 @@ type User = {
   first_name?: string | null;
   last_name?: string | null;
   is_admin?: boolean;
+  role?: string;
 };
 
 type Category = {
@@ -1555,6 +1556,24 @@ export default function AdminPage() {
               log in
             </a>{" "}
             to access the admin panel.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (user.role !== "admin") {
+    return (
+      <div className="adm-gate">
+        <style>{adminStyles}</style>
+        <div className="adm-gate-box">
+          <img src="/logo2.png" alt="ARduino Store" />
+          <h2>Admins only</h2>
+          <p>
+            This account does not have admin access.{" "}
+            <a href="/products" style={{ color: "var(--adm-primary)" }}>
+              Back to the store
+            </a>
           </p>
         </div>
       </div>

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import SiteChrome from "../components/SiteChrome";
+import { SessionProvider } from "../components/SessionProvider";
 import "./globals.css";
 import "./style.css";
+import "./extras.css";
 
 export const metadata: Metadata = {
   title: "Arduino Store – Premium Components for Makers",
@@ -19,7 +21,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <NuqsAdapter>
-          <SiteChrome>{children}</SiteChrome>
+          <SessionProvider>
+            <SiteChrome>{children}</SiteChrome>
+          </SessionProvider>
         </NuqsAdapter>
       </body>
     </html>
