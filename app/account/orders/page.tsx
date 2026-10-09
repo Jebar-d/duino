@@ -79,6 +79,37 @@ export default function AccountOrdersPage() {
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   };
 
+  const getShippingAddressLines = (rawAddress: string | null) => {
+    if (!rawAddress) return [];
+
+    let address: Record<string, unknown>;
+    try {
+      const parsed: unknown = JSON.parse(rawAddress);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return [rawAddress];
+      }
+      address = parsed as Record<string, unknown>;
+    } catch {
+      return [rawAddress];
+    }
+
+    const getText = (key: string) =>
+      typeof address[key] === "string" ? (address[key] as string).trim() : "";
+    const name = [getText("first_name"), getText("last_name")]
+      .filter(Boolean)
+      .join(" ");
+    const street = getText("address_line") || getText("address");
+    const location = [
+      getText("city"),
+      getText("province"),
+      getText("postal_code"),
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    return [name, getText("contact_number"), street, location].filter(Boolean);
+  };
+
   if (loading) {
     return (
       <main className="account-orders-page">
@@ -169,12 +200,16 @@ export default function AccountOrdersPage() {
                         <div className="account-order-item-info">
                           <strong>{item.product_name || "Product"}</strong>
 
-                          <span>Quantity: {item.qty}</span>
-
-                          <span>{formatPrice(item.price_cents)} each</span>
+                          <div className="account-order-item-meta">
+                            <span>Qty {item.qty}</span>
+                            <span>{formatPrice(item.price_cents)} each</span>
+                          </div>
                         </div>
 
-                        <strong>{formatPrice(item.subtotal_cents)}</strong>
+                        <div className="account-order-item-subtotal">
+                          <span>Subtotal</span>
+                          <strong>{formatPrice(item.subtotal_cents)}</strong>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -197,8 +232,21 @@ export default function AccountOrdersPage() {
 
                   <div>
                     <span>Tracking</span>
-                    <strong>{formatStatus(order.tracking_status)}</strong>
+                    <strong className="account-order-tracking-status">{formatStatus(order.tracking_status)}</strong>
                   </div>
+
+                  {order.shipping_address && (
+                    <div className="account-order-address">
+                      <span>Shipping address</span>
+                      <address>
+                        {getShippingAddressLines(order.shipping_address).map(
+                          (line, index) => (
+                            <span key={`${index}-${line}`}>{line}</span>
+                          ),
+                        )}
+                      </address>
+                    </div>
+                  )}
 
                   <div>
                     <span>Total</span>
