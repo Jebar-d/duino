@@ -185,7 +185,11 @@ export default function CartPage() {
           </Link>
         </div>
 
-        {message && <Alert variant="destructive"><AlertDescription>{message}</AlertDescription></Alert>}
+        {message && (
+          <Alert variant="destructive">
+            <AlertDescription>{message}</AlertDescription>
+          </Alert>
+        )}
 
         {items.length === 0 ? (
           <div className="cart-empty">
@@ -203,122 +207,132 @@ export default function CartPage() {
                 const lineTotal = product.price_cents * item.qty;
 
                 return (
-                  <Card key={item.id} className="cart-item">
-                    <Link
-                      href={`/product/${product.slug}`}
-                      className="cart-item-image"
-                    >
-                      <img
-                        src={getProductImageUrl(product.img_url)}
-                        alt={product.name}
-                        onError={handleProductImageError}
-                      />
-                    </Link>
-
-                    <div className="cart-item-info">
+                  <Card key={item.id} font="normal" className="py-0! gap-0!">
+                    <div className="cart-line">
                       <Link
                         href={`/product/${product.slug}`}
-                        className="cart-item-name"
+                        className="cart-line-image"
                       >
-                        {product.name}
+                        <img
+                          src={getProductImageUrl(product.img_url)}
+                          alt={product.name}
+                          onError={handleProductImageError}
+                        />
                       </Link>
 
-                      {product.sku && (
-                        <p className="cart-item-sku">SKU: {product.sku}</p>
-                      )}
+                      <div className="cart-line-info">
+                        <Link
+                          href={`/product/${product.slug}`}
+                          className="cart-line-name"
+                        >
+                          {product.name}
+                        </Link>
 
-                      <p className="cart-item-stock">
-                        {product.stock > 0
-                          ? `${product.stock} available`
-                          : "Out of stock"}
-                      </p>
+                        {product.sku && (
+                          <p className="cart-line-meta">SKU: {product.sku}</p>
+                        )}
 
-                      <div className="cart-item-actions">
-                        <div className="cart-quantity">
+                        <p
+                          className={`cart-line-meta${product.stock > 0 ? "" : " is-out"}`}
+                        >
+                          {product.stock > 0
+                            ? `${product.stock} available`
+                            : "Out of stock"}
+                        </p>
+
+                        <div className="cart-line-actions">
+                          <div className="cart-qty">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              type="button"
+                              aria-label="Decrease quantity"
+                              onClick={() =>
+                                updateQuantity(item.id, item.qty - 1)
+                              }
+                              disabled={updatingId === item.id || item.qty <= 1}
+                            >
+                              −
+                            </Button>
+
+                            <span className="cart-qty-value">
+                              {updatingId === item.id ? "…" : item.qty}
+                            </span>
+
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              type="button"
+                              aria-label="Increase quantity"
+                              onClick={() =>
+                                updateQuantity(item.id, item.qty + 1)
+                              }
+                              disabled={
+                                updatingId === item.id ||
+                                item.qty >= product.stock
+                              }
+                            >
+                              +
+                            </Button>
+                          </div>
+
                           <Button
-                            variant="outline"
-                            size="icon"
+                            variant="destructive"
+                            size="sm"
                             type="button"
-                            onClick={() =>
-                              updateQuantity(item.id, item.qty - 1)
-                            }
-                            disabled={
-                              updatingId === item.id || item.qty <= 1
-                            }
+                            className="text-[10px]"
+                            onClick={() => removeItem(item.id)}
+                            disabled={removingId === item.id}
                           >
-                            −
-                          </Button>
-
-                          <span>
-                            {updatingId === item.id ? "…" : item.qty}
-                          </span>
-
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            type="button"
-                            onClick={() =>
-                              updateQuantity(item.id, item.qty + 1)
-                            }
-                            disabled={
-                              updatingId === item.id ||
-                              item.qty >= product.stock
-                            }
-                          >
-                            +
+                            {removingId === item.id ? "Removing..." : "Remove"}
                           </Button>
                         </div>
-
-                        <Button
-                          variant="destructive"
-                          type="button"
-                          className="cart-remove"
-                          onClick={() => removeItem(item.id)}
-                          disabled={removingId === item.id}
-                        >
-                          {removingId === item.id ? "Removing..." : "Remove"}
-                        </Button>
                       </div>
-                    </div>
 
-                    <div className="cart-item-price">
-                      <strong>{formatPrice(lineTotal)}</strong>
-                      <span>{formatPrice(product.price_cents)} each</span>
+                      <div className="cart-line-price">
+                        <strong>{formatPrice(lineTotal)}</strong>
+                        <span>{formatPrice(product.price_cents)} each</span>
+                      </div>
                     </div>
                   </Card>
                 );
               })}
             </div>
 
-            <Card className="cart-summary">
-              <h2>Order Summary</h2>
+            <Card
+              font="normal"
+              className="py-0! gap-0! lg:sticky lg:top-[calc(var(--header-height)+20px)]"
+            >
+              <div className="cart-sum">
+                <h2 className="cart-sum-title">Order Summary</h2>
 
-              <div className="cart-summary-row">
-                <span>Subtotal</span>
-                <strong>{formatPrice(totalCents)}</strong>
+                <div className="cart-sum-row">
+                  <span>Subtotal</span>
+                  <strong>{formatPrice(totalCents)}</strong>
+                </div>
+
+                <div className="cart-sum-row">
+                  <span>Shipping</span>
+                  <strong>
+                    {shippingCents === 0 ? "FREE" : formatPrice(shippingCents)}
+                  </strong>
+                </div>
+
+                {shippingCents > 0 && (
+                  <p className="cart-sum-note">
+                    Free shipping on orders of ₱1,500 or more.
+                  </p>
+                )}
+
+                <div className="cart-sum-row cart-sum-total">
+                  <span>Total</span>
+                  <strong>{formatPrice(grandTotalCents)}</strong>
+                </div>
+
+                <Link href="/checkout" className="cart-checkout-button">
+                  Proceed to Checkout
+                </Link>
               </div>
-
-              <div className="cart-summary-row">
-                <span>Shipping</span>
-                <strong>
-                  {shippingCents === 0 ? "FREE" : formatPrice(shippingCents)}
-                </strong>
-              </div>
-
-              {shippingCents > 0 && (
-                <p className="cart-shipping-note">
-                  Free shipping on orders of ₱1,500 or more.
-                </p>
-              )}
-
-              <div className="cart-summary-total">
-                <span>Total</span>
-                <strong>{formatPrice(grandTotalCents)}</strong>
-              </div>
-
-              <Link href="/checkout" className="cart-checkout-button">
-                Proceed to Checkout
-              </Link>
             </Card>
           </div>
         )}
