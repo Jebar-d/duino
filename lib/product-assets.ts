@@ -44,6 +44,29 @@ export function getProductImageUrl(imageUrl: string | null | undefined) {
   return getPreferredProductAssetUrl(imageUrl) || "/product.png";
 }
 
+export function getModelUrl(product: {
+  slug: string;
+  model_url?: string | null;
+}) {
+  const modelUrl = product.model_url?.trim() ?? "";
+
+  if (modelUrl && /\.glb(?:[?#].*)?$/i.test(modelUrl)) {
+    return modelUrl;
+  }
+
+  if (!modelUrl) {
+    if (product.slug === "arduino-uno") {
+      return "/arduino_uno_board.glb";
+    }
+
+    if (product.slug === "mb-102-breadboard") {
+      return "/arduino_breadboard_-_low_poly.glb";
+    }
+  }
+
+  return null;
+}
+
 export function getPreferredProductModelUrl(modelUrl: string) {
   return getPreferredProductAssetUrl(modelUrl) || modelUrl;
 }

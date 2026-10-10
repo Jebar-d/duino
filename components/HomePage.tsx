@@ -2,15 +2,18 @@
 
 "use client";
 
+import dynamic from "next/dynamic";
+import Image from "next/image";
 import Link from "next/link";
 import { Clock3, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { Button } from "./ui/8bit/button";
 import { Input } from "./ui/8bit/input";
 import { toast as pixelToast } from "./ui/8bit/toast";
 import {
+  getModelUrl,
+  getPreferredProductModelUrl,
   getProductImageUrl,
   handleProductImageError,
 } from "../lib/product-assets";
@@ -44,9 +47,12 @@ type Promo = {
   is_free_shipping: boolean;
 };
 
-export default function HomePage() {
-  const router = useRouter();
+const HeroBoardModel = dynamic(() => import("./HeroBoardModel"), {
+  ssr: false,
+  loading: () => null,
+});
 
+export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [promos, setPromos] = useState<Promo[]>([]);
@@ -58,7 +64,6 @@ export default function HomePage() {
   const [promoCode, setPromoCode] = useState("");
   const [promoMessage, setPromoMessage] = useState("");
   const [promoSeconds, setPromoSeconds] = useState(0);
-  const [heroSearch, setHeroSearch] = useState("");
   const [newsletterEmail, setNewsletterEmail] = useState("");
 
   useEffect(() => {
@@ -102,7 +107,7 @@ export default function HomePage() {
       try {
         const data = await apiFetch<{
           products?: Product[];
-        }>("/products/list.php?limit=8");
+        }> ("/products/list.php?limit=50");
 
         if (Array.isArray(data.products)) {
           setProducts(data.products);
@@ -114,6 +119,17 @@ export default function HomePage() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  const heroModelUrl = useMemo(() => {
+    const product = products.find((entry) => entry.slug === "arduino-uno");
+
+    if (!product) {
+      return null;
+    }
+
+    const modelUrl = getModelUrl(product);
+    return modelUrl ? getPreferredProductModelUrl(modelUrl) : null;
+  }, [products]);
 
   useEffect(() => {
     let cancelled = false;
@@ -238,16 +254,6 @@ export default function HomePage() {
 
     return () => clearInterval(timer);
   }, [promoOpen, promoSeconds]);
-
-  function doHeroSearch() {
-    const query = heroSearch.trim();
-
-    if (!query) {
-      return;
-    }
-
-    router.push(`/products?search=${encodeURIComponent(query)}`);
-  }
 
   const filteredProducts = useMemo(() => {
     const query = productSearch.trim().toLowerCase();
@@ -449,419 +455,45 @@ export default function HomePage() {
         </div>
       </div>
 
-      <section className="hero-banner">
-        <div className="hero-scanlines" />
-
-        <div className="hero-inner">
-          <div className="hero-text-col">
-            <div className="hero-tag">
-              <svg width="8" height="8" viewBox="0 0 8 8">
-                <circle cx="4" cy="4" r="4" fill="#FFFFFF" />
-              </svg>
-              Electronics &amp; Maker Components
-            </div>
-
-            <h1 className="hero-heading">
-              <span className="hero-line-plain">Build</span>
-
-              <span className="hero-line-accent">Something</span>
-
-              <span className="hero-line-plain">Extraordinary</span>
-            </h1>
-
-            <p className="hero-sub">
-              Premium Arduino boards, sensors, and components for makers,
-              students, and engineers.
-            </p>
-
-            <div className="hero-buttons">
-              <Link href="/products" className="btn-hero-primary">
-                Browse Products
-              </Link>
-
-              <Button
-                className="btn-hero-secondary"
-                onClick={() => {
-                  document.querySelector(".featured-grid")?.scrollIntoView({
-                    behavior: "smooth",
-                  });
-                }}
-              >
-                Featured Items ↓
-              </Button>
-            </div>
-
-            <div className="hero-search">
-              <Input
-                type="text"
-                value={heroSearch}
-                placeholder="Search products, boards, sensors…"
-                onChange={(event) => setHeroSearch(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    doHeroSearch();
-                  }
-                }}
-              />
-
-              <Button onClick={doHeroSearch} aria-label="Search">
-                <svg
-                  viewBox="0 0 24 24"
-                  width="16"
-                  height="16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <circle cx="11" cy="11" r="8" />
-
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </Button>
-            </div>
+      <section className="hero-acab">
+        <div className="hero-acab-inner">
+          <div className="hero-acab-title-wrap">
+            <Image
+              src="/ACAB_DUINO@8x.png"
+              alt="ACAB DUINO"
+              width={3480}
+              height={952}
+              priority
+              sizes="(max-width: 640px) 100vw, 1100px"
+              className="hero-acab-title-image"
+            />
           </div>
 
-          <div className="hero-visual-col">
-            <div className="hero-board-scene">
-              <div className="hb-glow" />
-
-              <svg
-                className="hb-svg"
-                viewBox="0 0 340 240"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <rect
-                  x="20"
-                  y="20"
-                  width="280"
-                  height="180"
-                  rx="10"
-                  fill="#0D0D0D"
-                  stroke="#1A1A1A"
-                  strokeWidth="2"
-                />
-
-                <rect
-                  x="20"
-                  y="20"
-                  width="280"
-                  height="180"
-                  rx="10"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.06)"
-                  strokeWidth="1"
-                />
-
-                <g stroke="rgba(255,255,255,0.1)" strokeWidth="1">
-                  {[50, 62, 74, 86, 98, 110, 122, 134].map((x) => (
-                    <rect
-                      key={x}
-                      x={x}
-                      y="12"
-                      width="8"
-                      height="12"
-                      rx="1"
-                      fill="#111"
-                      stroke="rgba(255,255,255,0.12)"
-                      strokeWidth="0.8"
-                    />
-                  ))}
-                </g>
-
-                <g>
-                  {[50, 62, 74, 86, 98, 110].map((x) => (
-                    <rect
-                      key={x}
-                      x={x}
-                      y="216"
-                      width="8"
-                      height="12"
-                      rx="1"
-                      fill="#111"
-                      stroke="rgba(255,255,255,0.12)"
-                      strokeWidth="0.8"
-                    />
-                  ))}
-                </g>
-
-                <rect
-                  x="8"
-                  y="88"
-                  width="16"
-                  height="28"
-                  rx="3"
-                  fill="#1a1a1a"
-                  stroke="rgba(255,255,255,0.1)"
-                  strokeWidth="1"
-                />
-
-                <rect
-                  x="10"
-                  y="92"
-                  width="12"
-                  height="20"
-                  rx="1"
-                  fill="#0a0a0a"
-                />
-
-                <circle
-                  cx="30"
-                  cy="200"
-                  r="10"
-                  fill="#111"
-                  stroke="rgba(255,255,255,0.1)"
-                  strokeWidth="1"
-                />
-
-                <circle cx="30" cy="200" r="5" fill="#0a0a0a" />
-
-                <circle cx="30" cy="200" r="2" fill="#333" />
-
-                <rect
-                  x="130"
-                  y="80"
-                  width="70"
-                  height="70"
-                  rx="4"
-                  fill="#0a0a0a"
-                  stroke="rgba(119,207,207,0.35)"
-                  strokeWidth="1.5"
-                />
-
-                {[90, 100, 110, 120, 130, 140].map((y) => (
-                  <g key={y}>
-                    <line
-                      x1="120"
-                      y1={y}
-                      x2="130"
-                      y2={y}
-                      stroke="rgba(255,255,255,0.1)"
-                      strokeWidth="1.5"
-                    />
-
-                    <line
-                      x1="200"
-                      y1={y}
-                      x2="210"
-                      y2={y}
-                      stroke="rgba(255,255,255,0.1)"
-                      strokeWidth="1.5"
-                    />
-                  </g>
-                ))}
-
-                <text
-                  x="165"
-                  y="118"
-                  textAnchor="middle"
-                  fill="rgba(255,255,255,0.12)"
-                  fontSize="8"
-                  fontFamily="monospace"
-                >
-                  ATmega
-                </text>
-
-                <text
-                  x="165"
-                  y="130"
-                  textAnchor="middle"
-                  fill="rgba(255,255,255,0.12)"
-                  fontSize="8"
-                  fontFamily="monospace"
-                >
-                  328P
-                </text>
-
-                <rect
-                  x="230"
-                  y="95"
-                  width="22"
-                  height="12"
-                  rx="3"
-                  fill="#1a1a1a"
-                  stroke="rgba(255,255,255,0.1)"
-                  strokeWidth="1"
-                />
-
-                <line
-                  x1="234"
-                  y1="95"
-                  x2="234"
-                  y2="107"
-                  stroke="rgba(255,255,255,0.08)"
-                  strokeWidth="0.5"
-                />
-
-                <line
-                  x1="248"
-                  y1="95"
-                  x2="248"
-                  y2="107"
-                  stroke="rgba(255,255,255,0.08)"
-                  strokeWidth="0.5"
-                />
-
-                <rect
-                  x="240"
-                  y="140"
-                  width="20"
-                  height="28"
-                  rx="2"
-                  fill="#1a1a1a"
-                  stroke="rgba(119,207,207,0.25)"
-                  strokeWidth="1"
-                />
-
-                <path
-                  className="hb-trace hb-trace-1"
-                  d="M60 22 V50 H120 V80"
-                  stroke="#FFFFFF"
-                  strokeWidth="1"
-                  fill="none"
-                  strokeLinecap="round"
-                />
-
-                <path
-                  className="hb-trace hb-trace-2"
-                  d="M80 22 V60 H200 V80"
-                  stroke="#FFFFFF"
-                  strokeWidth="1"
-                  fill="none"
-                  strokeLinecap="round"
-                  style={{
-                    animationDelay: "0.5s",
-                  }}
-                />
-
-                <path
-                  className="hb-trace hb-trace-3"
-                  d="M100 22 V55 H240 V90"
-                  stroke="#FFFFFF"
-                  strokeWidth="1"
-                  fill="none"
-                  strokeLinecap="round"
-                  style={{
-                    animationDelay: "1s",
-                  }}
-                />
-
-                <path
-                  className="hb-trace hb-trace-4"
-                  d="M60 218 V185 H120 V150"
-                  stroke="#FFFFFF"
-                  strokeWidth="1"
-                  fill="none"
-                  strokeLinecap="round"
-                  style={{
-                    animationDelay: "1.5s",
-                  }}
-                />
-
-                <path
-                  className="hb-trace hb-trace-5"
-                  d="M80 218 V190 H210 V150"
-                  stroke="#FFFFFF"
-                  strokeWidth="1"
-                  fill="none"
-                  strokeLinecap="round"
-                  style={{
-                    animationDelay: "0.8s",
-                  }}
-                />
-
-                <path
-                  className="hb-trace hb-trace-6"
-                  d="M36 102 H60 V60 H130 V80"
-                  stroke="#FFFFFF"
-                  strokeWidth="1"
-                  fill="none"
-                  strokeLinecap="round"
-                  style={{
-                    animationDelay: "0.3s",
-                  }}
-                />
-
-                <circle
-                  cx="270"
-                  cy="55"
-                  r="7"
-                  fill="#0D0D0D"
-                  stroke="rgba(255,255,255,0.08)"
-                  strokeWidth="1"
-                />
-
-                <circle
-                  className="hb-led-pwr"
-                  cx="270"
-                  cy="55"
-                  r="4.5"
-                  fill="#1A1A1A"
-                />
-
-                <circle
-                  cx="255"
-                  cy="55"
-                  r="7"
-                  fill="#0D0D0D"
-                  stroke="rgba(255,255,255,0.1)"
-                  strokeWidth="1"
-                />
-
-                <circle
-                  className="hb-led-tx"
-                  cx="255"
-                  cy="55"
-                  r="4.5"
-                  fill="#1A1A1A"
-                />
-
-                <circle
-                  cx="240"
-                  cy="55"
-                  r="7"
-                  fill="#1A1A1A"
-                  stroke="rgba(255,255,255,0.08)"
-                  strokeWidth="1"
-                />
-
-                <circle
-                  className="hb-led-rx"
-                  cx="240"
-                  cy="55"
-                  r="4.5"
-                  fill="#1A1A1A"
-                />
-
-                <rect
-                  x="270"
-                  y="150"
-                  width="22"
-                  height="22"
-                  rx="3"
-                  fill="#111"
-                  stroke="rgba(255,255,255,0.08)"
-                  strokeWidth="1"
-                />
-
-                <circle
-                  className="hb-btn"
-                  cx="281"
-                  cy="161"
-                  r="7"
-                  fill="#1a1a1a"
-                  stroke="rgba(255,255,255,0.12)"
-                  strokeWidth="1.5"
-                />
-
-                <circle cx="281" cy="161" r="3" fill="#0d0d0d" />
-              </svg>
-
-              <div className="hb-packet hb-packet-1" />
-              <div className="hb-packet hb-packet-2" />
-              <div className="hb-packet hb-packet-3" />
+          {heroModelUrl && (
+            <div className="hero-acab-model-wrap">
+              <HeroBoardModel src={heroModelUrl} alt="Arduino Uno board" />
             </div>
-          </div>
+          )}
+        </div>
+
+        <div className="hero-acab-copy-grid">
+          <p>
+            Arduino Store is an online shop dedicated to providing Arduino
+            boards, electronic components, sensors, modules, and accessories for
+            electronics enthusiasts, students, hobbyists, and makers.
+          </p>
+          <p>
+            The store aims to make finding and purchasing electronic components
+            simple and convenient. Customers can explore products by category,
+            view product details and prices, manage their shopping carts, and
+            place orders online.
+          </p>
+          <p>
+            Arduino Store is designed to support beginners and experienced makers
+            in bringing their ideas to life. By providing accessible electronic
+            components in one place, the store encourages learning, creativity,
+            experimentation, and innovation in electronics and technology.
+          </p>
         </div>
       </section>
 
