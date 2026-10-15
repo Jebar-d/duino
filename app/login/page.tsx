@@ -59,8 +59,6 @@ export default function LoginPage() {
         }),
       });
 
-      // Reload who is logged in, then send admins to the admin panel
-      // and everyone else to the store.
       const account = await refresh();
       router.push(account?.role === "admin" ? "/admin" : "/");
       router.refresh();
@@ -108,7 +106,11 @@ export default function LoginPage() {
               />
             </div>
 
-            {message && <Alert variant="destructive"><AlertDescription>{message}</AlertDescription></Alert>}
+            {message && (
+              <Alert variant="destructive">
+                <AlertDescription>{message}</AlertDescription>
+              </Alert>
+            )}
 
             <Button type="submit" className="auth-submit" disabled={isLoading}>
               {isLoading ? "Logging in..." : "Log In"}
